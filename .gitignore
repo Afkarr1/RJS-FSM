@@ -38,3 +38,4 @@ build/
 ### App ###
 uploads/
 *.log
+.env
