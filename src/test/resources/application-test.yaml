@@ -1,0 +1,24 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:rjs_fsm_test}
+    username: ${DB_USER:postgres}
+    password: ${DB_PASS:postgres}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    clean-disabled: false
+
+app:
+  storage:
+    upload-dir: ${java.io.tmpdir}/rjs-fsm-test-uploads
+  fonnte:
+    api-key: ""
+    sender: ""
+
+logging:
+  level:
+    com.rjs.fsm: DEBUG

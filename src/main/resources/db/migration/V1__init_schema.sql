@@ -217,9 +217,9 @@ CREATE TRIGGER trg_jobs_updated_at
 -- =========================================================
 INSERT INTO users (tenant_id, username, password_hash, role, full_name, phone_e164) VALUES
     ('00000000-0000-0000-0000-000000000001', 'admin01',
-     '$2a$12$LJ3a4VQnJFh2qGSMzs9KQuDgX0nXVQjOqBPFg/k.xFRrW9j5KFYG6',
+     '$2b$12$dc/2SmDtBb3/QTHdlRbGSe3CFlC7cmunsShZ0nSVu2CrfRUFDhw.O',
      'ADMIN', 'Admin 01 RJS', '+6200000000001'),
     ('00000000-0000-0000-0000-000000000001', 'admin02',
-     '$2a$12$LJ3a4VQnJFh2qGSMzs9KQuDgX0nXVQjOqBPFg/k.xFRrW9j5KFYG6',
+     '$2b$12$dc/2SmDtBb3/QTHdlRbGSe3CFlC7cmunsShZ0nSVu2CrfRUFDhw.O',
      'ADMIN', 'Admin 02 RJS', '+6200000000002');
 -- Default password for both: rjs@Admin2024 (CHANGE IN PRODUCTION!)
