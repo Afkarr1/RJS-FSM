@@ -138,14 +138,19 @@ public class ReviewService {
         link.setUsedAt(OffsetDateTime.now());
         linkRepo.save(link);
 
-        // Audit
+        // Audit - set tenant context for public endpoint (no auth, so actor is null)
+        UUID previousTenant = TenantContext.get();
         TenantContext.set(link.getTenantId());
         try {
             auditService.logAction(null, "SUBMIT_REVIEW", "JOB_REVIEWS", review.getId(),
                     "Customer review: rating=" + req.getRating() + ", photos=" + photoResponses.size()
                             + " for job " + job.getTitle());
         } finally {
-            TenantContext.clear();
+            if (previousTenant != null) {
+                TenantContext.set(previousTenant);
+            } else {
+                TenantContext.clear();
+            }
         }
 
         log.info("Review submitted for job {}: rating={}, photos={}", job.getId(), req.getRating(), photoResponses.size());

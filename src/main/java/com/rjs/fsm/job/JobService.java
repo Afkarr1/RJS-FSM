@@ -297,7 +297,7 @@ public class JobService {
     }
 
     private void validateTechOwnership(Job job, UUID technicianId) {
-        if (!technicianId.equals(job.getAssignedToId())) {
+        if (job.getAssignedToId() == null || !technicianId.equals(job.getAssignedToId())) {
             throw new ForbiddenException("Anda tidak memiliki akses ke job ini");
         }
     }

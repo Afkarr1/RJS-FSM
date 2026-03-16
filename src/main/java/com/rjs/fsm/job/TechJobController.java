@@ -30,7 +30,7 @@ public class TechJobController {
     public JobResponse getJob(@PathVariable UUID id) {
         UUID techId = currentUser.getCurrentUserId();
         JobResponse job = jobService.getJob(id);
-        if (!techId.equals(job.getAssignedToId())) {
+        if (job.getAssignedToId() == null || !techId.equals(job.getAssignedToId())) {
             throw new com.rjs.fsm.exception.ForbiddenException("Anda tidak memiliki akses ke job ini");
         }
         return job;
