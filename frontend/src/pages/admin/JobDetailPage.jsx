@@ -266,23 +266,28 @@ export default function JobDetailPage() {
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-            {photos.map((photo, idx) => (
-              <motion.a
-                key={photo.id || idx}
-                href={photo.url || photo.photoUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="group relative aspect-square overflow-hidden rounded-xl bg-neutral-100"
-                whileHover={{ scale: 1.02 }}
-                transition={{ duration: 0.2 }}
-              >
-                <img
-                  src={photo.url || photo.photoUrl || photo.thumbnailUrl}
-                  alt={photo.caption || `Foto ${idx + 1}`}
-                  className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                />
-              </motion.a>
-            ))}
+            {photos.map((photo, idx) => {
+              const photoUrl = photo.downloadUrl
+                ? (() => { try { return new URL(photo.downloadUrl).pathname; } catch { return photo.downloadUrl; } })()
+                : (photo.url || '');
+              return (
+                <motion.a
+                  key={photo.id || idx}
+                  href={photoUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group relative aspect-square overflow-hidden rounded-xl bg-neutral-100"
+                  whileHover={{ scale: 1.02 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <img
+                    src={photoUrl}
+                    alt={photo.fileName || `Foto ${idx + 1}`}
+                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                  />
+                </motion.a>
+              );
+            })}
           </div>
         )}
       </div>
