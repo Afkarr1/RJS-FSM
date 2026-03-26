@@ -3,6 +3,7 @@ package com.rjs.fsm.review;
 import com.rjs.fsm.audit.AuditService;
 import com.rjs.fsm.config.AppProperties;
 import com.rjs.fsm.exception.BadRequestException;
+import com.rjs.fsm.exception.NotFoundException;
 import com.rjs.fsm.job.Job;
 import com.rjs.fsm.job.JobRepository;
 import com.rjs.fsm.review.dto.ReviewResponse;
@@ -13,9 +14,10 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.web.multipart.MultipartFile;
+import org.springframework.mock.web.MockMultipartFile;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -24,6 +26,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -39,14 +42,14 @@ class ReviewServiceTest {
     @Mock JobRepository jobRepo;
     @Mock StorageService storageService;
     @Mock AuditService auditService;
-    @Mock AppProperties props;
 
     ReviewService reviewService;
 
     @BeforeEach
     void setUp() {
         TenantContext.set(TENANT_ID);
-        when(props.getBaseUrl()).thenReturn("http://localhost:8080");
+        AppProperties props = new AppProperties();
+        props.setBaseUrl("http://localhost:8080");
         reviewService = new ReviewService(
                 linkRepo, reviewRepo, reviewPhotoRepo, jobRepo,
                 storageService, auditService, props);
@@ -86,6 +89,11 @@ class ReviewServiceTest {
         return req;
     }
 
+    private MockMultipartFile mockFile(String name) {
+        return new MockMultipartFile(name, name + ".jpg", "image/jpeg",
+                new byte[]{1, 2, 3}); // non-empty
+    }
+
     // ── getReviewPage ────────────────────────────────────────────────────────
 
     @Test
@@ -97,7 +105,7 @@ class ReviewServiceTest {
 
         assertFalse(res.isAlreadyReviewed());
         assertFalse(res.isExpired());
-        assertEquals("Repair AC", res.getJobTitle());
+        assertTrue(res.getMessage().contains("Silakan"));
     }
 
     @Test
@@ -111,6 +119,7 @@ class ReviewServiceTest {
         ReviewResponse res = reviewService.getReviewPage(TOKEN);
 
         assertTrue(res.isAlreadyReviewed());
+        assertFalse(res.isExpired());
     }
 
     @Test
@@ -124,6 +133,35 @@ class ReviewServiceTest {
         ReviewResponse res = reviewService.getReviewPage(TOKEN);
 
         assertTrue(res.isExpired());
+        assertFalse(res.isAlreadyReviewed());
+    }
+
+    @Test
+    void getReviewPage_includesJobTitleAndCustomerName() {
+        when(linkRepo.findByToken(TOKEN)).thenReturn(Optional.of(validLink()));
+        when(jobRepo.findById(JOB_ID)).thenReturn(Optional.of(buildJob()));
+
+        ReviewResponse res = reviewService.getReviewPage(TOKEN);
+
+        assertEquals("Repair AC", res.getJobTitle());
+        assertEquals("Budi", res.getCustomerName());
+    }
+
+    @Test
+    void getReviewPage_throwsNotFound_whenTokenNotFound() {
+        when(linkRepo.findByToken(TOKEN)).thenReturn(Optional.empty());
+
+        assertThrows(NotFoundException.class,
+                () -> reviewService.getReviewPage(TOKEN));
+    }
+
+    @Test
+    void getReviewPage_throwsNotFound_whenJobMissing() {
+        when(linkRepo.findByToken(TOKEN)).thenReturn(Optional.of(validLink()));
+        when(jobRepo.findById(JOB_ID)).thenReturn(Optional.empty());
+
+        assertThrows(NotFoundException.class,
+                () -> reviewService.getReviewPage(TOKEN));
     }
 
     // ── submitReview ─────────────────────────────────────────────────────────
@@ -135,8 +173,10 @@ class ReviewServiceTest {
 
         when(linkRepo.findByToken(TOKEN)).thenReturn(Optional.of(usedLink));
 
-        assertThrows(BadRequestException.class,
+        BadRequestException ex = assertThrows(BadRequestException.class,
                 () -> reviewService.submitReview(TOKEN, buildRequest(5), null));
+        assertTrue(ex.getMessage().contains("sudah pernah"));
+        verify(reviewRepo, never()).save(any());
     }
 
     @Test
@@ -148,19 +188,20 @@ class ReviewServiceTest {
 
         assertThrows(BadRequestException.class,
                 () -> reviewService.submitReview(TOKEN, buildRequest(4), null));
+        verify(reviewRepo, never()).save(any());
     }
 
     @Test
     void submitReview_tooManyPhotos_throwsBadRequest() {
         when(linkRepo.findByToken(TOKEN)).thenReturn(Optional.of(validLink()));
 
-        List<MultipartFile> sixPhotos = List.of(
-                mock(MultipartFile.class), mock(MultipartFile.class),
-                mock(MultipartFile.class), mock(MultipartFile.class),
-                mock(MultipartFile.class), mock(MultipartFile.class));
+        List<MockMultipartFile> sixPhotos = List.of(
+                mockFile("p1"), mockFile("p2"), mockFile("p3"),
+                mockFile("p4"), mockFile("p5"), mockFile("p6"));
 
-        assertThrows(BadRequestException.class,
-                () -> reviewService.submitReview(TOKEN, buildRequest(3), sixPhotos));
+        BadRequestException ex = assertThrows(BadRequestException.class,
+                () -> reviewService.submitReview(TOKEN, buildRequest(3), List.copyOf(sixPhotos)));
+        assertTrue(ex.getMessage().contains("Maksimal 5"));
     }
 
     @Test
@@ -177,6 +218,96 @@ class ReviewServiceTest {
         verify(linkRepo).save(argThat(l -> l.getUsedAt() != null));
     }
 
+    @Test
+    void submitReview_savesPhotosWhenProvided() {
+        when(linkRepo.findByToken(TOKEN)).thenReturn(Optional.of(validLink()));
+        when(jobRepo.findById(JOB_ID)).thenReturn(Optional.of(buildJob()));
+        when(reviewRepo.save(any(JobReview.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(linkRepo.save(any(JobReviewLink.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(storageService.store(any(), anyString())).thenReturn("reviews/path/file.jpg");
+
+        List<MockMultipartFile> photos = List.of(mockFile("p1"), mockFile("p2"));
+        reviewService.submitReview(TOKEN, buildRequest(4), List.copyOf(photos));
+
+        verify(storageService, times(2)).store(any(), anyString());
+        verify(reviewPhotoRepo, times(2)).save(any(ReviewPhoto.class));
+    }
+
+    @Test
+    void submitReview_skipsEmptyFiles() {
+        MockMultipartFile emptyFile = new MockMultipartFile("empty", "empty.jpg", "image/jpeg", new byte[0]);
+        MockMultipartFile realFile = mockFile("real");
+
+        when(linkRepo.findByToken(TOKEN)).thenReturn(Optional.of(validLink()));
+        when(jobRepo.findById(JOB_ID)).thenReturn(Optional.of(buildJob()));
+        when(reviewRepo.save(any(JobReview.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(linkRepo.save(any(JobReviewLink.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(storageService.store(any(), anyString())).thenReturn("path/file.jpg");
+
+        reviewService.submitReview(TOKEN, buildRequest(5), List.of(emptyFile, realFile));
+
+        verify(storageService, times(1)).store(any(), anyString());
+        verify(reviewPhotoRepo, times(1)).save(any(ReviewPhoto.class));
+    }
+
+    @Test
+    void submitReview_succeedsWithNullPhotos() {
+        when(linkRepo.findByToken(TOKEN)).thenReturn(Optional.of(validLink()));
+        when(jobRepo.findById(JOB_ID)).thenReturn(Optional.of(buildJob()));
+        when(reviewRepo.save(any(JobReview.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(linkRepo.save(any(JobReviewLink.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        assertDoesNotThrow(() -> reviewService.submitReview(TOKEN, buildRequest(5), null));
+        verify(reviewPhotoRepo, never()).save(any());
+    }
+
+    @Test
+    void submitReview_succeedsWithEmptyPhotoList() {
+        when(linkRepo.findByToken(TOKEN)).thenReturn(Optional.of(validLink()));
+        when(jobRepo.findById(JOB_ID)).thenReturn(Optional.of(buildJob()));
+        when(reviewRepo.save(any(JobReview.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(linkRepo.save(any(JobReviewLink.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        assertDoesNotThrow(() -> reviewService.submitReview(TOKEN, buildRequest(3), List.of()));
+        verify(reviewPhotoRepo, never()).save(any());
+    }
+
+    @Test
+    void submitReview_restoresTenantContext_whenPreviousContextWasSet() {
+        TenantContext.set(TENANT_ID); // explicitly set before call
+
+        when(linkRepo.findByToken(TOKEN)).thenReturn(Optional.of(validLink()));
+        when(jobRepo.findById(JOB_ID)).thenReturn(Optional.of(buildJob()));
+        when(reviewRepo.save(any(JobReview.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(linkRepo.save(any(JobReviewLink.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        reviewService.submitReview(TOKEN, buildRequest(5), null);
+
+        assertEquals(TENANT_ID, TenantContext.get());
+    }
+
+    @Test
+    void submitReview_clearsTenantContext_whenNoPreviousContextWasSet() {
+        TenantContext.clear(); // simulate no context before call
+
+        when(linkRepo.findByToken(TOKEN)).thenReturn(Optional.of(validLink()));
+        when(jobRepo.findById(JOB_ID)).thenReturn(Optional.of(buildJob()));
+        when(reviewRepo.save(any(JobReview.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(linkRepo.save(any(JobReviewLink.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        reviewService.submitReview(TOKEN, buildRequest(5), null);
+
+        assertNull(TenantContext.get());
+    }
+
+    @Test
+    void submitReview_throwsNotFound_whenTokenNotFound() {
+        when(linkRepo.findByToken(TOKEN)).thenReturn(Optional.empty());
+
+        assertThrows(NotFoundException.class,
+                () -> reviewService.submitReview(TOKEN, buildRequest(5), null));
+    }
+
     // ── createReviewLink ─────────────────────────────────────────────────────
 
     @Test
@@ -191,5 +322,33 @@ class ReviewServiceTest {
         verify(linkRepo).save(argThat(link ->
                 link.getExpiresAt().isAfter(before) && link.getExpiresAt().isBefore(after)
         ));
+    }
+
+    @Test
+    void createReviewLink_savesCorrectFields() {
+        Job job = buildJob();
+        when(linkRepo.save(any(JobReviewLink.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        ArgumentCaptor<JobReviewLink> captor = ArgumentCaptor.forClass(JobReviewLink.class);
+        reviewService.createReviewLink(job);
+
+        verify(linkRepo).save(captor.capture());
+        JobReviewLink saved = captor.getValue();
+        assertEquals(JOB_ID, saved.getJobId());
+        assertEquals(TENANT_ID, saved.getTenantId());
+        assertNotNull(saved.getToken());
+        assertEquals(32, saved.getToken().length()); // UUID without dashes = 32 chars
+        assertFalse(saved.getToken().contains("-"));
+    }
+
+    @Test
+    void createReviewLink_returnsToken() {
+        Job job = buildJob();
+        when(linkRepo.save(any(JobReviewLink.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        String token = reviewService.createReviewLink(job);
+
+        assertNotNull(token);
+        assertEquals(32, token.length());
     }
 }

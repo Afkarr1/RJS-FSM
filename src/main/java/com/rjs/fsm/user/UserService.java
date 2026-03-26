@@ -52,13 +52,14 @@ public class UserService {
     public UserResponse create(CreateUserRequest req) {
         UUID tenantId = TenantContext.require();
 
-        if (repo.existsByUsernameAndTenantId(req.getUsername(), tenantId)) {
-            throw new BadRequestException("Username sudah digunakan: " + req.getUsername());
+        String username = req.getUsername().trim();
+        if (repo.existsByUsernameAndTenantId(username, tenantId)) {
+            throw new BadRequestException("Username sudah digunakan: " + username);
         }
 
         User u = new User();
         u.setTenantId(tenantId);
-        u.setUsername(req.getUsername().trim().toLowerCase());
+        u.setUsername(username);
         u.setFullName(req.getFullName().trim());
         u.setPasswordHash(encoder.encode(req.getPassword()));
         u.setRole(req.getRole());

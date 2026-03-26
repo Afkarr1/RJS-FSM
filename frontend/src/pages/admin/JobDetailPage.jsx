@@ -6,6 +6,7 @@ import {
   UserPlus,
   RefreshCw,
   CheckCircle,
+  XCircle,
   MapPin,
   Calendar,
   User,
@@ -33,6 +34,7 @@ export default function JobDetailPage() {
   const [assignModal, setAssignModal] = useState(false);
   const [rescheduleModal, setRescheduleModal] = useState(false);
   const [closeConfirm, setCloseConfirm] = useState(false);
+  const [cancelConfirm, setCancelConfirm] = useState(false);
 
   // Form states
   const [assignForm, setAssignForm] = useState({ technicianId: '', scheduledDate: '' });
@@ -90,7 +92,7 @@ export default function JobDetailPage() {
     setSubmitting(true);
     try {
       await adminApi.assignJob(id, {
-        technicianId: Number(assignForm.technicianId),
+        technicianId: assignForm.technicianId,
         scheduledDate: assignForm.scheduledDate || undefined,
       });
       toast.success('Teknisi berhasil ditugaskan');
@@ -117,7 +119,7 @@ export default function JobDetailPage() {
     try {
       await adminApi.rescheduleJob(id, {
         scheduledDate: rescheduleForm.scheduledDate,
-        technicianId: rescheduleForm.technicianId ? Number(rescheduleForm.technicianId) : undefined,
+        technicianId: rescheduleForm.technicianId || undefined,
       });
       toast.success('Pekerjaan berhasil dijadwalkan ulang');
       setRescheduleModal(false);
@@ -128,6 +130,23 @@ export default function JobDetailPage() {
       setHistory(updatedHistory || []);
     } catch (err) {
       toast.error(err?.message || 'Gagal menjadwalkan ulang');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleCancel = async () => {
+    setSubmitting(true);
+    try {
+      await adminApi.cancelJob(id);
+      toast.success('Pekerjaan berhasil dibatalkan');
+      setCancelConfirm(false);
+      const updated = await adminApi.getJob(id);
+      setJob(updated);
+      const updatedHistory = await adminApi.getJobHistory(id).catch(() => []);
+      setHistory(updatedHistory || []);
+    } catch (err) {
+      toast.error(err?.message || 'Gagal membatalkan pekerjaan');
     } finally {
       setSubmitting(false);
     }
@@ -207,6 +226,15 @@ export default function JobDetailPage() {
                 Tutup Pekerjaan
               </button>
             )}
+            {['OPEN', 'ASSIGNED', 'NEED_FOLLOWUP'].includes(job.status) && (
+              <button
+                onClick={() => setCancelConfirm(true)}
+                className="btn-danger inline-flex items-center gap-2 text-sm"
+              >
+                <XCircle className="h-4 w-4" />
+                Batalkan
+              </button>
+            )}
           </div>
         </div>
 
@@ -238,23 +266,28 @@ export default function JobDetailPage() {
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-            {photos.map((photo, idx) => (
-              <motion.a
-                key={photo.id || idx}
-                href={photo.url || photo.photoUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="group relative aspect-square overflow-hidden rounded-xl bg-neutral-100"
-                whileHover={{ scale: 1.02 }}
-                transition={{ duration: 0.2 }}
-              >
-                <img
-                  src={photo.url || photo.photoUrl || photo.thumbnailUrl}
-                  alt={photo.caption || `Foto ${idx + 1}`}
-                  className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                />
-              </motion.a>
-            ))}
+            {photos.map((photo, idx) => {
+              const photoUrl = photo.downloadUrl
+                ? (() => { try { return new URL(photo.downloadUrl).pathname; } catch { return photo.downloadUrl; } })()
+                : (photo.url || '');
+              return (
+                <motion.a
+                  key={photo.id || idx}
+                  href={photoUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group relative aspect-square overflow-hidden rounded-xl bg-neutral-100"
+                  whileHover={{ scale: 1.02 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <img
+                    src={photoUrl}
+                    alt={photo.fileName || `Foto ${idx + 1}`}
+                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                  />
+                </motion.a>
+              );
+            })}
           </div>
         )}
       </div>
@@ -382,6 +415,23 @@ export default function JobDetailPage() {
             </button>
             <button onClick={handleReschedule} disabled={submitting} className="btn-primary">
               {submitting ? 'Menyimpan...' : 'Jadwalkan Ulang'}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Cancel Confirmation Modal */}
+      <Modal isOpen={cancelConfirm} onClose={() => setCancelConfirm(false)} title="Batalkan Pekerjaan" size="sm">
+        <div>
+          <p className="mb-4 text-sm text-neutral-600">
+            Apakah Anda yakin ingin membatalkan pekerjaan <strong>{job.title}</strong>? Tindakan ini tidak dapat dibatalkan.
+          </p>
+          <div className="flex justify-end gap-3">
+            <button onClick={() => setCancelConfirm(false)} className="btn-ghost">
+              Tidak
+            </button>
+            <button onClick={handleCancel} disabled={submitting} className="btn-danger">
+              {submitting ? 'Membatalkan...' : 'Ya, Batalkan'}
             </button>
           </div>
         </div>

@@ -34,9 +34,9 @@ export default function UserListPage() {
     fullName: '',
     password: '',
     role: 'TECHNICIAN',
-    phone: '',
+    phoneE164: '',
   });
-  const [editForm, setEditForm] = useState({ fullName: '', role: '', phone: '' });
+  const [editForm, setEditForm] = useState({ fullName: '', role: '', phoneE164: '' });
   const [newPassword, setNewPassword] = useState('');
 
   const fetchUsers = async () => {
@@ -56,8 +56,12 @@ export default function UserListPage() {
   }, []);
 
   const handleCreate = async () => {
-    if (!createForm.username || !createForm.password) {
-      toast.error('Username dan password wajib diisi');
+    if (!createForm.username || !createForm.fullName) {
+      toast.error('Username dan nama lengkap wajib diisi');
+      return;
+    }
+    if (!createForm.password || createForm.password.length < 8) {
+      toast.error('Password minimal 8 karakter');
       return;
     }
     setSubmitting(true);
@@ -65,7 +69,7 @@ export default function UserListPage() {
       await adminApi.createUser(createForm);
       toast.success('Pengguna berhasil dibuat');
       setCreateModal(false);
-      setCreateForm({ username: '', fullName: '', password: '', role: 'TECHNICIAN', phone: '' });
+      setCreateForm({ username: '', fullName: '', password: '', role: 'TECHNICIAN', phoneE164: '' });
       fetchUsers();
     } catch (err) {
       toast.error(err?.message || 'Gagal membuat pengguna');
@@ -79,7 +83,7 @@ export default function UserListPage() {
     setEditForm({
       fullName: user.fullName || '',
       role: user.role || 'TECHNICIAN',
-      phone: user.phone || '',
+      phoneE164: user.phoneE164 || '',
     });
     setEditModal(true);
   };
@@ -105,8 +109,8 @@ export default function UserListPage() {
   };
 
   const handleResetPassword = async () => {
-    if (!newPassword) {
-      toast.error('Password baru wajib diisi');
+    if (!newPassword || newPassword.length < 8) {
+      toast.error('Password baru minimal 8 karakter');
       return;
     }
     setSubmitting(true);
@@ -201,7 +205,7 @@ export default function UserListPage() {
                         {u.role}
                       </span>
                     </td>
-                    <td className="px-6 py-3.5 text-neutral-500">{u.phone || '-'}</td>
+                    <td className="px-6 py-3.5 text-neutral-500">{u.phoneE164 || '-'}</td>
                     <td className="px-6 py-3.5">
                       <span
                         className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
@@ -303,10 +307,10 @@ export default function UserListPage() {
             <label className="mb-1.5 block text-sm font-medium text-neutral-700">Telepon</label>
             <input
               type="tel"
-              value={createForm.phone}
-              onChange={(e) => setCreateForm((f) => ({ ...f, phone: e.target.value }))}
+              value={createForm.phoneE164}
+              onChange={(e) => setCreateForm((f) => ({ ...f, phoneE164: e.target.value }))}
               className="input-field"
-              placeholder="Masukkan nomor telepon"
+              placeholder="+628123456789"
             />
           </div>
           <div className="flex justify-end gap-3 pt-2">
@@ -347,9 +351,10 @@ export default function UserListPage() {
             <label className="mb-1.5 block text-sm font-medium text-neutral-700">Telepon</label>
             <input
               type="tel"
-              value={editForm.phone}
-              onChange={(e) => setEditForm((f) => ({ ...f, phone: e.target.value }))}
+              value={editForm.phoneE164}
+              onChange={(e) => setEditForm((f) => ({ ...f, phoneE164: e.target.value }))}
               className="input-field"
+              placeholder="+628123456789"
             />
           </div>
           <div className="flex justify-end gap-3 pt-2">

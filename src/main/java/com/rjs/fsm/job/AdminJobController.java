@@ -54,6 +54,11 @@ public class AdminJobController {
         return jobService.closeJob(id, currentUser.getCurrentUserId());
     }
 
+    @PostMapping("/{id}/cancel")
+    public JobResponse cancelJob(@PathVariable UUID id) {
+        return jobService.cancelJob(id, currentUser.getCurrentUserId());
+    }
+
     @GetMapping("/{id}/history")
     public List<JobHistoryResponse> getJobHistory(@PathVariable UUID id) {
         return jobService.getJobHistory(id);

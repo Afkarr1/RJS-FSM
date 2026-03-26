@@ -45,24 +45,26 @@ export const api = {
 // Auth
 export const authApi = {
   login: async (username, password) => {
-    const creds = btoa(`${username}:${password}`);
-    const res = await fetch(`${API_BASE}/admin/users`, {
+    const trimmedUsername = username.trim();
+    const creds = btoa(`${trimmedUsername}:${password}`);
+    const res = await fetch(`${API_BASE}/me`, {
       headers: { Authorization: `Basic ${creds}` },
     });
     if (res.status === 401) {
-      // Try as technician
-      const res2 = await fetch(`${API_BASE}/tech/jobs?activeOnly=false`, {
-        headers: { Authorization: `Basic ${creds}` },
-      });
-      if (res2.ok) {
-        return { creds, role: 'TECHNICIAN' };
-      }
       throw new Error('Username atau password salah');
     }
-    if (res.ok) {
-      return { creds, role: 'ADMIN' };
+    if (!res.ok) {
+      throw new Error('Login gagal');
     }
-    throw new Error('Login gagal');
+    const data = await res.json();
+    const authorities = data.authorities || [];
+    if (authorities.includes('ROLE_ADMIN')) {
+      return { creds, role: 'ADMIN', username: trimmedUsername };
+    }
+    if (authorities.includes('ROLE_TECHNICIAN')) {
+      return { creds, role: 'TECHNICIAN', username: trimmedUsername };
+    }
+    throw new Error('Role tidak dikenali');
   },
 };
 
@@ -82,6 +84,7 @@ export const adminApi = {
   assignJob: (id, data) => api.post(`/admin/jobs/${id}/assign`, data),
   rescheduleJob: (id, data) => api.post(`/admin/jobs/${id}/reschedule`, data),
   closeJob: (id) => api.post(`/admin/jobs/${id}/close`),
+  cancelJob: (id) => api.post(`/admin/jobs/${id}/cancel`),
   getJobHistory: (id) => api.get(`/admin/jobs/${id}/history`),
   getJobPhotos: (id) => api.get(`/admin/jobs/${id}/photos`),
 

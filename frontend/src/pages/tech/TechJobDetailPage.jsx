@@ -106,12 +106,15 @@ export default function TechJobDetailPage() {
     if (selectedFiles.length === 0) return;
     setUploading(true);
     try {
-      const formData = new FormData();
-      selectedFiles.forEach((f) => formData.append('photos', f));
-      await techApi.uploadPhoto(id, formData);
+      for (const f of selectedFiles) {
+        const formData = new FormData();
+        formData.append('file', f);
+        await techApi.uploadPhoto(id, formData);
+      }
       toast.success('Foto berhasil diupload!');
       setSelectedFiles([]);
       await fetchPhotos();
+      await fetchJob();
     } catch (err) {
       toast.error('Gagal mengupload foto.');
     } finally {
@@ -152,9 +155,10 @@ export default function TechJobDetailPage() {
   };
 
   const getPhotoUrl = (photo) => {
-    if (photo.url) return photo.url;
-    if (photo.id) return `${API_BASE}/tech/jobs/${id}/photos/${photo.id}`;
-    return '';
+    if (photo.downloadUrl) {
+      try { return new URL(photo.downloadUrl).pathname; } catch { return photo.downloadUrl; }
+    }
+    return photo.url || '';
   };
 
   if (loading) return <LoadingSpinner />;

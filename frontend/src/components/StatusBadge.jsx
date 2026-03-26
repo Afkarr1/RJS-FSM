@@ -7,6 +7,7 @@ const STATUS_MAP = {
   DONE: { label: 'Selesai', className: 'badge-done' },
   NEED_FOLLOWUP: { label: 'Follow Up', className: 'badge-need-followup' },
   CLOSED: { label: 'Ditutup', className: 'badge-closed' },
+  CANCELLED: { label: 'Dibatalkan', className: 'badge-cancelled' },
 };
 
 export default function StatusBadge({ status }) {
