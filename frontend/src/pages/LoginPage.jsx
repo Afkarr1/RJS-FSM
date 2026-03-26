@@ -48,8 +48,8 @@ export default function LoginPage() {
     setError('');
 
     try {
-      const { creds, role, username: normalizedUser } = await authApi.login(username, password);
-      login(normalizedUser, role, creds);
+      const { creds, role, username: resolvedUsername } = await authApi.login(username, password);
+      login(resolvedUsername, role, creds);
       navigate(role === 'ADMIN' ? '/admin' : '/tech', { replace: true });
     } catch (err) {
       setError(err.message || 'Login gagal. Silakan coba lagi.');
