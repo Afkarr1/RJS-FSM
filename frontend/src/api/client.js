@@ -45,7 +45,9 @@ export const api = {
 // Auth
 export const authApi = {
   login: async (username, password) => {
-    const creds = btoa(`${username}:${password}`);
+    // Backend stores username lowercase — normalize before encoding credentials
+    const normalizedUsername = username.trim().toLowerCase();
+    const creds = btoa(`${normalizedUsername}:${password}`);
     const res = await fetch(`${API_BASE}/me`, {
       headers: { Authorization: `Basic ${creds}` },
     });
@@ -58,10 +60,10 @@ export const authApi = {
     const data = await res.json();
     const authorities = data.authorities || [];
     if (authorities.includes('ROLE_ADMIN')) {
-      return { creds, role: 'ADMIN' };
+      return { creds, role: 'ADMIN', username: normalizedUsername };
     }
     if (authorities.includes('ROLE_TECHNICIAN')) {
-      return { creds, role: 'TECHNICIAN' };
+      return { creds, role: 'TECHNICIAN', username: normalizedUsername };
     }
     throw new Error('Role tidak dikenali');
   },

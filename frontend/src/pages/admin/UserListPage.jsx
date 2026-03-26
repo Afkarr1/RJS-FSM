@@ -56,8 +56,12 @@ export default function UserListPage() {
   }, []);
 
   const handleCreate = async () => {
-    if (!createForm.username || !createForm.password) {
-      toast.error('Username dan password wajib diisi');
+    if (!createForm.username || !createForm.fullName) {
+      toast.error('Username dan nama lengkap wajib diisi');
+      return;
+    }
+    if (!createForm.password || createForm.password.length < 8) {
+      toast.error('Password minimal 8 karakter');
       return;
     }
     setSubmitting(true);
@@ -105,8 +109,8 @@ export default function UserListPage() {
   };
 
   const handleResetPassword = async () => {
-    if (!newPassword) {
-      toast.error('Password baru wajib diisi');
+    if (!newPassword || newPassword.length < 8) {
+      toast.error('Password baru minimal 8 karakter');
       return;
     }
     setSubmitting(true);
