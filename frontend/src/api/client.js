@@ -49,8 +49,8 @@ export const authApi = {
     const res = await fetch(`${API_BASE}/admin/users`, {
       headers: { Authorization: `Basic ${creds}` },
     });
-    if (res.status === 401) {
-      // Try as technician
+    if (res.status === 401 || res.status === 403) {
+      // Try as technician (403 = authenticated but wrong role for admin endpoint)
       const res2 = await fetch(`${API_BASE}/tech/jobs?activeOnly=false`, {
         headers: { Authorization: `Basic ${creds}` },
       });
