@@ -46,23 +46,24 @@ export const api = {
 export const authApi = {
   login: async (username, password) => {
     const creds = btoa(`${username}:${password}`);
-    const res = await fetch(`${API_BASE}/admin/users`, {
+    const res = await fetch(`${API_BASE}/me`, {
       headers: { Authorization: `Basic ${creds}` },
     });
-    if (res.status === 401 || res.status === 403) {
-      // Try as technician (403 = authenticated but wrong role for admin endpoint)
-      const res2 = await fetch(`${API_BASE}/tech/jobs?activeOnly=false`, {
-        headers: { Authorization: `Basic ${creds}` },
-      });
-      if (res2.ok) {
-        return { creds, role: 'TECHNICIAN' };
-      }
+    if (res.status === 401) {
       throw new Error('Username atau password salah');
     }
-    if (res.ok) {
+    if (!res.ok) {
+      throw new Error('Login gagal');
+    }
+    const data = await res.json();
+    const authorities = data.authorities || [];
+    if (authorities.includes('ROLE_ADMIN')) {
       return { creds, role: 'ADMIN' };
     }
-    throw new Error('Login gagal');
+    if (authorities.includes('ROLE_TECHNICIAN')) {
+      return { creds, role: 'TECHNICIAN' };
+    }
+    throw new Error('Role tidak dikenali');
   },
 };
 
