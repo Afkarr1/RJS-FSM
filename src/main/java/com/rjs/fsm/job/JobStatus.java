@@ -9,7 +9,8 @@ public enum JobStatus {
     IN_PROGRESS,
     DONE,
     NEED_FOLLOWUP,
-    CLOSED;
+    CLOSED,
+    CANCELLED;
 
     /**
      * FSM transition rules.

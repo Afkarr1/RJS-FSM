@@ -270,6 +270,28 @@ public class JobService {
     }
 
     @Transactional
+    public JobResponse cancelJob(UUID jobId, UUID adminId) {
+        Job job = getJobEntity(jobId);
+
+        if (job.getStatus() == JobStatus.IN_PROGRESS ||
+            job.getStatus() == JobStatus.DONE ||
+            job.getStatus() == JobStatus.CLOSED ||
+            job.getStatus() == JobStatus.CANCELLED) {
+            throw new BadRequestException("Job dengan status " + job.getStatus() + " tidak dapat dibatalkan");
+        }
+
+        JobStatus oldStatus = job.getStatus();
+        job.setStatus(JobStatus.CANCELLED);
+
+        job = jobRepo.save(job);
+        recordHistory(job, oldStatus, JobStatus.CANCELLED, adminId);
+        auditService.logAction(adminId, "CANCEL_JOB", "JOBS", job.getId(), "Job cancelled");
+
+        log.info("Job cancelled: id={}, previousStatus={}", job.getId(), oldStatus);
+        return toResponse(job);
+    }
+
+    @Transactional
     public void markPhotoUploaded(UUID jobId) {
         Job job = getJobEntity(jobId);
         job.setPhotoUploaded(true);

@@ -66,6 +66,7 @@
   .badge-done { @apply bg-green-50 text-green-700 border border-green-200; }
   .badge-need-followup { @apply bg-orange-50 text-orange-700 border border-orange-200; }
   .badge-closed { @apply bg-neutral-100 text-neutral-600 border border-neutral-200; }
+  .badge-cancelled { @apply bg-red-50 text-red-600 border border-red-200; }
   .nav-item {
     @apply flex items-center gap-3 px-4 py-3 rounded-xl
            text-neutral-500 font-medium

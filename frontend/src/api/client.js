@@ -82,6 +82,7 @@ export const adminApi = {
   assignJob: (id, data) => api.post(`/admin/jobs/${id}/assign`, data),
   rescheduleJob: (id, data) => api.post(`/admin/jobs/${id}/reschedule`, data),
   closeJob: (id) => api.post(`/admin/jobs/${id}/close`),
+  cancelJob: (id) => api.post(`/admin/jobs/${id}/cancel`),
   getJobHistory: (id) => api.get(`/admin/jobs/${id}/history`),
   getJobPhotos: (id) => api.get(`/admin/jobs/${id}/photos`),
 
