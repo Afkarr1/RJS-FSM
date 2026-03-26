@@ -26,12 +26,21 @@ services:
       DB_USER: postgres
       DB_PASS: postgres
       FONNTE_API_KEY: ${FONNTE_API_KEY:-}
-      APP_BASE_URL: ${APP_BASE_URL:-http://localhost:8080}
+      FONNTE_SENDER: ${FONNTE_SENDER:-}
+      APP_BASE_URL: ${APP_BASE_URL:-http://localhost}
+      UPLOAD_DIR: /app/uploads
     depends_on:
       db:
         condition: service_healthy
     volumes:
       - uploads:/app/uploads
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - app
 
 volumes:
   pgdata:
