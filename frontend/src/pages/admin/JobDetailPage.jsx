@@ -106,6 +106,7 @@ export default function JobDetailPage() {
       day: 'numeric',
       month: 'long',
       year: 'numeric',
+      timeZone: 'Asia/Jakarta',
     });
   };
 
@@ -117,6 +118,7 @@ export default function JobDetailPage() {
       year: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
+      timeZone: 'Asia/Jakarta',
     });
   };
 

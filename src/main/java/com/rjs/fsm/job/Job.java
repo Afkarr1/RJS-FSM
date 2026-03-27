@@ -6,6 +6,7 @@ import lombok.Setter;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.util.UUID;
 
 @Entity
@@ -78,13 +79,13 @@ public class Job {
     @PrePersist
     void onCreate() {
         if (id == null) id = UUID.randomUUID();
-        OffsetDateTime now = OffsetDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now(ZoneId.of("Asia/Jakarta"));
         if (createdAt == null) createdAt = now;
         if (updatedAt == null) updatedAt = now;
     }
 
     @PreUpdate
     void onUpdate() {
-        updatedAt = OffsetDateTime.now();
+        updatedAt = OffsetDateTime.now(ZoneId.of("Asia/Jakarta"));
     }
 }

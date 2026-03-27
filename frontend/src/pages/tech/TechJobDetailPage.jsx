@@ -270,6 +270,7 @@ export default function TechJobDetailPage() {
       day: 'numeric',
       month: 'long',
       year: 'numeric',
+      timeZone: 'Asia/Jakarta',
     });
   };
 
@@ -281,6 +282,7 @@ export default function TechJobDetailPage() {
       year: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
+      timeZone: 'Asia/Jakarta',
     });
   };
 

@@ -63,6 +63,7 @@ export default function DashboardPage() {
       day: 'numeric',
       month: 'short',
       year: 'numeric',
+      timeZone: 'Asia/Jakarta',
     });
   };
 

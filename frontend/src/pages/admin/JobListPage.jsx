@@ -61,6 +61,7 @@ export default function JobListPage() {
       day: 'numeric',
       month: 'short',
       year: 'numeric',
+      timeZone: 'Asia/Jakarta',
     });
   };
 
