@@ -152,7 +152,7 @@ export default function DashboardPage() {
                     <td className="px-6 py-3.5">
                       <StatusBadge status={job.status} />
                     </td>
-                    <td className="px-6 py-3.5 text-neutral-600">{job.technicianName || '-'}</td>
+                    <td className="px-6 py-3.5 text-neutral-600">{job.assignedToName || '-'}</td>
                     <td className="px-6 py-3.5 text-neutral-500">
                       {formatDate(job.scheduledDate || job.createdAt)}
                     </td>
