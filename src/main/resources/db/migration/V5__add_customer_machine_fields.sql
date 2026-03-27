@@ -1,0 +1,2 @@
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS machine_type   VARCHAR(100);
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS machine_number VARCHAR(100);

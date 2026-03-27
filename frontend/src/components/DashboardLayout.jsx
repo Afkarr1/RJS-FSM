@@ -5,6 +5,7 @@ import {
   LayoutDashboard,
   Briefcase,
   Users,
+  Users2,
   Shield,
   LogOut,
   Wrench,
@@ -17,6 +18,7 @@ import { useAuth } from '../context/AuthContext';
 const ADMIN_NAV = [
   { label: 'Dashboard', icon: LayoutDashboard, path: '/admin/dashboard' },
   { label: 'Pekerjaan', icon: Briefcase, path: '/admin/jobs' },
+  { label: 'Pelanggan', icon: Users2, path: '/admin/customers' },
   { label: 'Pengguna', icon: Users, path: '/admin/users' },
   { label: 'Audit Log', icon: Shield, path: '/admin/audit' },
 ];

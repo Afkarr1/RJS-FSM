@@ -10,6 +10,7 @@ import AdminJobDetailPage from './pages/admin/JobDetailPage';
 import AdminCreateJobPage from './pages/admin/CreateJobPage';
 import AdminUserListPage from './pages/admin/UserListPage';
 import AdminAuditPage from './pages/admin/AuditPage';
+import AdminCustomerListPage from './pages/admin/CustomerListPage';
 
 // Tech pages
 import TechDashboardPage from './pages/tech/TechDashboardPage';
@@ -59,6 +60,7 @@ export default function App() {
         <Route path="jobs" element={<AdminJobListPage />} />
         <Route path="jobs/new" element={<AdminCreateJobPage />} />
         <Route path="jobs/:id" element={<AdminJobDetailPage />} />
+        <Route path="customers" element={<AdminCustomerListPage />} />
         <Route path="users" element={<AdminUserListPage />} />
         <Route path="audit" element={<AdminAuditPage />} />
       </Route>

@@ -90,6 +90,11 @@ export const adminApi = {
 
   getAuditLogs: () => api.get('/admin/audit/logs'),
   getLoginAudit: () => api.get('/admin/audit/logins'),
+
+  getCustomers: (search) => api.get(`/admin/customers${search ? `?search=${encodeURIComponent(search)}` : ''}`),
+  createCustomer: (data) => api.post('/admin/customers', data),
+  updateCustomer: (id, data) => api.put(`/admin/customers/${id}`, data),
+  deleteCustomer: (id) => api.delete(`/admin/customers/${id}`),
 };
 
 // Tech APIs

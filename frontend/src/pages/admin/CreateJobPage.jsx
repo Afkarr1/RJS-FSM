@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { ArrowLeft, Save } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ArrowLeft, Save, Search, X, UserCheck } from 'lucide-react';
 import { adminApi } from '../../api/client';
 
 export default function CreateJobPage() {
@@ -14,9 +14,54 @@ export default function CreateJobPage() {
     address: '', scheduledDate: '', assignToId: '', requiresPhoto: true,
   });
 
+  // Customer search state
+  const [customers, setCustomers] = useState([]);
+  const [customerSearch, setCustomerSearch] = useState('');
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const searchRef = useRef(null);
+
   const todayWIB = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Jakarta' });
 
-  useEffect(() => { adminApi.getTechnicians().then(setTechs).catch(() => {}); }, []);
+  useEffect(() => {
+    adminApi.getTechnicians().then(setTechs).catch(() => {});
+    adminApi.getCustomers().then(setCustomers).catch(() => {});
+  }, []);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handler = (e) => {
+      if (searchRef.current && !searchRef.current.contains(e.target)) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const filteredCustomers = customerSearch.trim()
+    ? customers.filter((c) =>
+        c.name.toLowerCase().includes(customerSearch.toLowerCase())
+      )
+    : [];
+
+  const selectCustomer = (c) => {
+    setSelectedCustomer(c);
+    setCustomerSearch(c.name);
+    setShowDropdown(false);
+    setForm((prev) => ({
+      ...prev,
+      customerName: c.name,
+      customerPhone: c.phoneE164 || '',
+      address: c.address || '',
+    }));
+  };
+
+  const clearCustomer = () => {
+    setSelectedCustomer(null);
+    setCustomerSearch('');
+    setForm((prev) => ({ ...prev, customerName: '', customerPhone: '', address: '' }));
+  };
 
   const set = (k, v) => setForm({ ...form, [k]: v });
 
@@ -46,6 +91,76 @@ export default function CreateJobPage() {
         {error && <div className="mb-4 p-3 rounded-xl bg-red-50 text-red-700 text-sm">{error}</div>}
 
         <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-card border border-neutral-150 p-6 space-y-5">
+
+          {/* Customer Search */}
+          <div>
+            <label className="block text-sm font-medium text-neutral-700 mb-1">
+              Pilih Customer (opsional)
+            </label>
+            <div ref={searchRef} className="relative">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+              <input
+                type="text"
+                value={customerSearch}
+                onChange={(e) => {
+                  setCustomerSearch(e.target.value);
+                  setSelectedCustomer(null);
+                  setShowDropdown(true);
+                }}
+                onFocus={() => { if (customerSearch.trim()) setShowDropdown(true); }}
+                placeholder="Ketik nama customer untuk mencari..."
+                className="input-field pl-9 pr-9"
+              />
+              {customerSearch && (
+                <button
+                  type="button"
+                  onClick={clearCustomer}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+
+              <AnimatePresence>
+                {showDropdown && filteredCustomers.length > 0 && (
+                  <motion.ul
+                    initial={{ opacity: 0, y: -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -4 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute z-20 mt-1 w-full rounded-xl border border-neutral-150 bg-white shadow-lg overflow-hidden"
+                  >
+                    {filteredCustomers.slice(0, 8).map((c) => (
+                      <li key={c.id}>
+                        <button
+                          type="button"
+                          onMouseDown={() => selectCustomer(c)}
+                          className="flex w-full items-start gap-3 px-4 py-3 text-left hover:bg-primary-50 transition-colors"
+                        >
+                          <UserCheck className="h-4 w-4 mt-0.5 shrink-0 text-primary-500" />
+                          <div>
+                            <p className="text-sm font-medium text-neutral-800">{c.name}</p>
+                            <p className="text-xs text-neutral-400">
+                              {[c.phoneE164, c.machineType].filter(Boolean).join(' · ') || 'Tidak ada info tambahan'}
+                            </p>
+                          </div>
+                        </button>
+                      </li>
+                    ))}
+                  </motion.ul>
+                )}
+              </AnimatePresence>
+            </div>
+            {selectedCustomer && (
+              <p className="mt-1.5 text-xs text-primary-600 flex items-center gap-1">
+                <UserCheck className="h-3.5 w-3.5" />
+                Data customer terisi otomatis. Anda tetap bisa mengubah field di bawah.
+              </p>
+            )}
+          </div>
+
+          <div className="border-t border-neutral-100" />
+
           <Field label="Judul Pekerjaan *" value={form.title} onChange={v => set('title', v)} placeholder="Contoh: Service AC" />
           <Field label="Deskripsi" value={form.description} onChange={v => set('description', v)} placeholder="Detail pekerjaan..." multiline />
           <div className="grid sm:grid-cols-2 gap-4">
