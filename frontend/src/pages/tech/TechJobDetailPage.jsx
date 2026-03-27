@@ -116,10 +116,41 @@ export default function TechJobDetailPage() {
     }
   };
 
+  const isAllowedFile = (f) => {
+    const type = f.type.toLowerCase();
+    const name = f.name.toLowerCase();
+    return (
+      type.startsWith('image/') ||
+      type === 'application/pdf' ||
+      name.endsWith('.heic') ||
+      name.endsWith('.heif')
+    );
+  };
+
+  const needsFaceCheck = (f) => {
+    const type = f.type.toLowerCase();
+    const name = f.name.toLowerCase();
+    return (
+      type.startsWith('image/') &&
+      type !== 'image/heic' &&
+      type !== 'image/heif' &&
+      !name.endsWith('.heic') &&
+      !name.endsWith('.heif')
+    );
+  };
+
   const handleFilesSelected = async (files) => {
-    const validFiles = Array.from(files).filter((f) => f.type.startsWith('image/'));
+    const validFiles = Array.from(files).filter(isAllowedFile);
     if (validFiles.length === 0) {
-      toast.error('Pilih file gambar (JPG, PNG, dll).');
+      toast.error('Pilih file gambar (JPG, PNG, HEIC) atau PDF.');
+      return;
+    }
+
+    const passthrough = validFiles.filter((f) => !needsFaceCheck(f));
+    const toCheck = validFiles.filter(needsFaceCheck);
+
+    if (toCheck.length === 0) {
+      setSelectedFiles((prev) => [...prev, ...passthrough]);
       return;
     }
 
@@ -129,10 +160,10 @@ export default function TechJobDetailPage() {
     }
 
     setDetecting(true);
-    const accepted = [];
+    const accepted = [...passthrough];
     const rejected = [];
 
-    for (const file of validFiles) {
+    for (const file of toCheck) {
       const hasFace = await hasFaceInImage(file);
       if (hasFace) {
         accepted.push(file);
@@ -469,13 +500,13 @@ export default function TechJobDetailPage() {
                   <p className="text-sm font-medium text-neutral-600">
                     Seret foto ke sini atau <span className="text-primary-600">klik untuk memilih</span>
                   </p>
-                  <p className="mt-1 text-xs text-neutral-400">JPG, PNG, WEBP — wajah teknisi harus terdeteksi</p>
+                  <p className="mt-1 text-xs text-neutral-400">JPG, PNG, HEIC, PDF — foto wajah teknisi wajib untuk gambar</p>
                 </>
               )}
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*"
+                accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf,.heic,.heif,.pdf"
                 multiple
                 onChange={(e) => handleFilesSelected(e.target.files)}
                 className="hidden"
@@ -492,27 +523,48 @@ export default function TechJobDetailPage() {
                   className="mt-4"
                 >
                   <div className="flex flex-wrap gap-3">
-                    {previews.map((url, i) => (
-                      <motion.div
-                        key={url}
-                        initial={{ opacity: 0, scale: 0.8 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.8 }}
-                        className="group relative h-20 w-20 overflow-hidden rounded-xl ring-1 ring-neutral-200"
-                      >
-                        <img
-                          src={url}
-                          alt={`Preview ${i + 1}`}
-                          className="h-full w-full object-cover"
-                        />
-                        <button
-                          onClick={(e) => { e.stopPropagation(); removeFile(i); }}
-                          className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-white opacity-0 shadow-sm transition-opacity group-hover:opacity-100"
+                    {previews.map((url, i) => {
+                      const file = selectedFiles[i];
+                      const isPdf = file?.type === 'application/pdf';
+                      const isHeic = file?.type === 'image/heic' || file?.type === 'image/heif'
+                        || file?.name?.toLowerCase().endsWith('.heic')
+                        || file?.name?.toLowerCase().endsWith('.heif');
+                      return (
+                        <motion.div
+                          key={url}
+                          initial={{ opacity: 0, scale: 0.8 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0, scale: 0.8 }}
+                          className="group relative h-20 w-20 overflow-hidden rounded-xl ring-1 ring-neutral-200"
                         >
-                          <X size={12} />
-                        </button>
-                      </motion.div>
-                    ))}
+                          {isPdf ? (
+                            <div className="flex h-full w-full flex-col items-center justify-center bg-red-50">
+                              <FileText size={22} className="text-red-400" />
+                              <span className="mt-1 w-full truncate px-1 text-center text-[9px] text-red-400">
+                                {file.name}
+                              </span>
+                            </div>
+                          ) : isHeic ? (
+                            <div className="flex h-full w-full flex-col items-center justify-center bg-neutral-100">
+                              <ImageIcon size={22} className="text-neutral-400" />
+                              <span className="mt-1 text-[9px] text-neutral-400">HEIC</span>
+                            </div>
+                          ) : (
+                            <img
+                              src={url}
+                              alt={`Preview ${i + 1}`}
+                              className="h-full w-full object-cover"
+                            />
+                          )}
+                          <button
+                            onClick={(e) => { e.stopPropagation(); removeFile(i); }}
+                            className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-white opacity-0 shadow-sm transition-opacity group-hover:opacity-100"
+                          >
+                            <X size={12} />
+                          </button>
+                        </motion.div>
+                      );
+                    })}
                   </div>
 
                   <motion.button

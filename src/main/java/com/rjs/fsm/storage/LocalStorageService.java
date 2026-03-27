@@ -25,7 +25,14 @@ public class LocalStorageService implements StorageService {
 
     private static final Logger log = LoggerFactory.getLogger(LocalStorageService.class);
     private static final Set<String> ALLOWED_TYPES = Set.of(
-            "image/jpeg", "image/png", "image/webp"
+            "image/jpeg", "image/png", "image/webp",
+            "image/heic", "image/heif",
+            "application/pdf"
+    );
+
+    // Types that cannot be processed by ImageIO — stored as-is
+    private static final Set<String> PASSTHROUGH_TYPES = Set.of(
+            "image/heic", "image/heif", "application/pdf"
     );
 
     private final Path rootDir;
@@ -50,7 +57,7 @@ public class LocalStorageService implements StorageService {
 
         String contentType = file.getContentType();
         if (contentType == null || !ALLOWED_TYPES.contains(contentType)) {
-            throw new BadRequestException("Tipe file tidak didukung. Gunakan JPEG, PNG, atau WebP.");
+            throw new BadRequestException("Tipe file tidak didukung. Gunakan JPEG, PNG, WebP, HEIC, atau PDF.");
         }
 
         try {
@@ -59,26 +66,39 @@ public class LocalStorageService implements StorageService {
             Path dir = rootDir.resolve(subDirectory).resolve(datePath);
             Files.createDirectories(dir);
 
-            String ext = contentType.equals("image/png") ? ".png" :
-                         contentType.equals("image/webp") ? ".webp" : ".jpg";
+            String ext = switch (contentType) {
+                case "image/png"      -> ".png";
+                case "image/webp"     -> ".webp";
+                case "image/heic"     -> ".heic";
+                case "image/heif"     -> ".heif";
+                case "application/pdf" -> ".pdf";
+                default               -> ".jpg";
+            };
             String fileName = UUID.randomUUID() + ext;
             Path target = dir.resolve(fileName);
 
-            // Compress image
-            try (InputStream is = file.getInputStream()) {
-                BufferedImage original = ImageIO.read(is);
-                if (original == null) throw new BadRequestException("File bukan gambar yang valid");
+            if (PASSTHROUGH_TYPES.contains(contentType)) {
+                // HEIC/HEIF/PDF: store as-is without image processing
+                try (InputStream is = file.getInputStream()) {
+                    Files.copy(is, target);
+                }
+            } else {
+                // Compress & resize image
+                try (InputStream is = file.getInputStream()) {
+                    BufferedImage original = ImageIO.read(is);
+                    if (original == null) throw new BadRequestException("File bukan gambar yang valid");
 
-                if (original.getWidth() > maxWidth) {
-                    Thumbnails.of(original)
-                            .width(maxWidth)
-                            .outputQuality(quality)
-                            .toFile(target.toFile());
-                } else {
-                    Thumbnails.of(original)
-                            .scale(1.0)
-                            .outputQuality(quality)
-                            .toFile(target.toFile());
+                    if (original.getWidth() > maxWidth) {
+                        Thumbnails.of(original)
+                                .width(maxWidth)
+                                .outputQuality(quality)
+                                .toFile(target.toFile());
+                    } else {
+                        Thumbnails.of(original)
+                                .scale(1.0)
+                                .outputQuality(quality)
+                                .toFile(target.toFile());
+                    }
                 }
             }
 
