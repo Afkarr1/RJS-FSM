@@ -23,7 +23,6 @@ const ADMIN_NAV = [
 
 const TECH_NAV = [
   { label: 'Dashboard', icon: LayoutDashboard, path: '/tech/dashboard' },
-  { label: 'Pekerjaan Saya', icon: Wrench, path: '/tech/jobs' },
 ];
 
 export default function DashboardLayout() {
