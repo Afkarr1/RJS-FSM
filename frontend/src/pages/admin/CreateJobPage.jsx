@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Save, Search, X, UserCheck } from 'lucide-react';
+import { ArrowLeft, Save, Search, X, UserCheck, UserPlus } from 'lucide-react';
 import { adminApi } from '../../api/client';
+import { useToast } from '../../components/Toast';
 
 export default function CreateJobPage() {
   const navigate = useNavigate();
+  const toast = useToast();
   const [techs, setTechs] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
@@ -20,6 +22,9 @@ export default function CreateJobPage() {
   const [showDropdown, setShowDropdown] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const searchRef = useRef(null);
+
+  // Save-to-contacts toggle (only shown when customer is new / manual input)
+  const [saveToContacts, setSaveToContacts] = useState(false);
 
   const todayWIB = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Jakarta' });
 
@@ -49,6 +54,7 @@ export default function CreateJobPage() {
     setSelectedCustomer(c);
     setCustomerSearch(c.name);
     setShowDropdown(false);
+    setSaveToContacts(false);
     setForm((prev) => ({
       ...prev,
       customerName: c.name,
@@ -60,10 +66,20 @@ export default function CreateJobPage() {
   const clearCustomer = () => {
     setSelectedCustomer(null);
     setCustomerSearch('');
+    setSaveToContacts(false);
     setForm((prev) => ({ ...prev, customerName: '', customerPhone: '', address: '' }));
   };
 
-  const set = (k, v) => setForm({ ...form, [k]: v });
+  const set = (k, v) => {
+    // If admin manually edits customer fields, clear selected customer
+    if (['customerName', 'customerPhone', 'address'].includes(k)) {
+      setSelectedCustomer(null);
+    }
+    setForm({ ...form, [k]: v });
+  };
+
+  // Show toggle only when customer is typed manually (not selected from DB) and name is not empty
+  const showSaveToggle = !selectedCustomer && form.customerName.trim().length > 0;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -72,7 +88,26 @@ export default function CreateJobPage() {
       const payload = { ...form };
       if (!payload.assignToId) delete payload.assignToId;
       if (!payload.scheduledDate) delete payload.scheduledDate;
+
       const job = await adminApi.createJob(payload);
+
+      // Optionally save new customer to contacts
+      if (saveToContacts && form.customerName.trim()) {
+        try {
+          await adminApi.createCustomer({
+            name: form.customerName.trim(),
+            phoneE164: form.customerPhone.trim() || '',
+            address: form.address.trim() || '',
+            machineType: '',
+            machineNumber: '',
+            notes: '',
+          });
+          toast.success(`"${form.customerName.trim()}" ditambahkan ke daftar pelanggan`);
+        } catch {
+          toast.error('Pekerjaan dibuat, tapi gagal menyimpan ke daftar pelanggan');
+        }
+      }
+
       navigate(`/admin/jobs/${job.id}`);
     } catch (err) {
       setError(err.message || 'Gagal membuat pekerjaan');
@@ -105,6 +140,7 @@ export default function CreateJobPage() {
                 onChange={(e) => {
                   setCustomerSearch(e.target.value);
                   setSelectedCustomer(null);
+                  setSaveToContacts(false);
                   setShowDropdown(true);
                 }}
                 onFocus={() => { if (customerSearch.trim()) setShowDropdown(true); }}
@@ -168,6 +204,35 @@ export default function CreateJobPage() {
             <Field label="Telepon Customer" value={form.customerPhone} onChange={v => set('customerPhone', v)} placeholder="+628xxxxxxxxx" />
           </div>
           <Field label="Alamat" value={form.address} onChange={v => set('address', v)} placeholder="Alamat lengkap" multiline />
+
+          {/* Save to contacts toggle — only shown for new (manual) customers */}
+          <AnimatePresence>
+            {showSaveToggle && (
+              <motion.label
+                key="save-toggle"
+                initial={{ opacity: 0, y: -6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.18 }}
+                className="flex items-center gap-3 cursor-pointer rounded-xl border border-blue-200 bg-blue-50 px-4 py-3"
+              >
+                <input
+                  type="checkbox"
+                  checked={saveToContacts}
+                  onChange={e => setSaveToContacts(e.target.checked)}
+                  className="w-4 h-4 rounded border-neutral-300 text-primary-500 focus:ring-primary-500"
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-blue-800">Tambahkan ke Daftar Pelanggan</p>
+                  <p className="text-xs text-blue-600 truncate">
+                    Simpan "<span className="font-semibold">{form.customerName}</span>" ke kontak pelanggan
+                  </p>
+                </div>
+                <UserPlus className="h-4 w-4 shrink-0 text-blue-500" />
+              </motion.label>
+            )}
+          </AnimatePresence>
+
           <div className="grid sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-neutral-700 mb-1">Tanggal Jadwal</label>
