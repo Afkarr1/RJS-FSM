@@ -102,6 +102,7 @@ export const techApi = {
   followUp: (id, reason) => api.post(`/tech/jobs/${id}/followup`, { reason }),
   uploadPhoto: (jobId, formData) => api.upload(`/tech/jobs/${jobId}/photos`, formData),
   getPhotos: (jobId) => api.get(`/tech/jobs/${jobId}/photos`),
+  getJobHistory: (id) => api.get(`/tech/jobs/${id}/history`),
 };
 
 // Public APIs

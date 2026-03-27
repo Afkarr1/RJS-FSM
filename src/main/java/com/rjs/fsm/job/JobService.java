@@ -219,6 +219,7 @@ public class JobService {
 
         JobStatus oldStatus = job.getStatus();
         job.setStatus(JobStatus.IN_TRANSIT);
+        job.setInTransitAt(OffsetDateTime.now());
 
         job = jobRepo.save(job);
         recordHistory(job, oldStatus, JobStatus.IN_TRANSIT, technicianId, null);

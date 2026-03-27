@@ -16,6 +16,7 @@ import {
   FileText,
   ZoomIn,
   Truck,
+  Clock,
 } from 'lucide-react';
 import * as faceapi from 'face-api.js';
 import { techApi } from '../../api/client';
@@ -60,6 +61,9 @@ export default function TechJobDetailPage() {
   // Lightbox
   const [lightboxUrl, setLightboxUrl] = useState(null);
 
+  // Job history
+  const [history, setHistory] = useState([]);
+
   // Load face detection model on mount
   useEffect(() => {
     faceapi.nets.tinyFaceDetector.loadFromUri('/models')
@@ -87,14 +91,23 @@ export default function TechJobDetailPage() {
     }
   }, [id]);
 
+  const fetchHistory = useCallback(async () => {
+    try {
+      const data = await techApi.getJobHistory(id);
+      setHistory(Array.isArray(data) ? data : []);
+    } catch {
+      // history may not be available yet
+    }
+  }, [id]);
+
   useEffect(() => {
     async function load() {
       setLoading(true);
-      await Promise.all([fetchJob(), fetchPhotos()]);
+      await Promise.all([fetchJob(), fetchPhotos(), fetchHistory()]);
       setLoading(false);
     }
     load();
-  }, [fetchJob, fetchPhotos]);
+  }, [fetchJob, fetchPhotos, fetchHistory]);
 
   // Generate previews for selected files
   useEffect(() => {
@@ -224,7 +237,7 @@ export default function TechJobDetailPage() {
         await techApi.finishJob(id);
         toast.success('Tugas selesai!');
       }
-      await fetchJob();
+      await Promise.all([fetchJob(), fetchHistory()]);
     } catch (err) {
       const msg = err?.message || 'Gagal melakukan aksi.';
       toast.error(msg);
@@ -241,7 +254,7 @@ export default function TechJobDetailPage() {
       toast.success('Follow up berhasil ditandai.');
       setFollowUpModal(false);
       setFollowUpReason('');
-      await fetchJob();
+      await Promise.all([fetchJob(), fetchHistory()]);
     } catch (err) {
       const msg = err?.message || 'Gagal melakukan follow up.';
       toast.error(msg);
@@ -259,6 +272,28 @@ export default function TechJobDetailPage() {
       year: 'numeric',
     });
   };
+
+  const formatDateTime = (dateStr) => {
+    if (!dateStr) return '-';
+    return new Date(dateStr).toLocaleString('id-ID', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  const statusLabel = (s) => ({
+    OPEN: 'Dibuat',
+    ASSIGNED: 'Ditugaskan',
+    IN_TRANSIT: 'Dalam Perjalanan',
+    IN_PROGRESS: 'Sedang Dikerjakan',
+    DONE: 'Selesai',
+    NEED_FOLLOWUP: 'Butuh Follow Up',
+    CLOSED: 'Ditutup',
+    CANCELLED: 'Dibatalkan',
+  }[s] || s);
 
   const getPhotoUrl = (photo) => {
     if (photo.downloadUrl) {
@@ -623,6 +658,47 @@ export default function TechJobDetailPage() {
                     />
                   </div>
                 </motion.div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+
+        {/* Job History Timeline */}
+        {history.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.4 }}
+            className="mb-6 rounded-2xl bg-white p-6 shadow-card ring-1 ring-neutral-100"
+          >
+            <h2 className="mb-4 text-base font-semibold text-neutral-800 flex items-center gap-2">
+              <Clock size={18} className="text-primary-600" />
+              Riwayat Pekerjaan
+            </h2>
+            <div className="relative pl-6">
+              <div className="absolute left-[9px] top-2 bottom-2 w-0.5 bg-neutral-200" />
+              {history.map((entry, idx) => (
+                <div key={entry.id || idx} className="relative mb-5 last:mb-0">
+                  <div
+                    className={`absolute -left-6 top-1.5 h-[18px] w-[18px] rounded-full border-[3px] ${
+                      idx === history.length - 1
+                        ? 'border-primary-500 bg-primary-100'
+                        : 'border-neutral-300 bg-white'
+                    }`}
+                  />
+                  <div className="ml-2">
+                    <p className="text-sm font-semibold text-neutral-800">
+                      {statusLabel(entry.toStatus)}
+                    </p>
+                    {entry.note && (
+                      <p className="mt-0.5 text-sm text-neutral-500">{entry.note}</p>
+                    )}
+                    <p className="mt-1 text-xs text-neutral-400">
+                      {formatDateTime(entry.changedAt)}
+                      {entry.changedByName && ` \u2014 ${entry.changedByName}`}
+                    </p>
+                  </div>
+                </div>
               ))}
             </div>
           </motion.div>

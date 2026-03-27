@@ -1,6 +1,7 @@
 package com.rjs.fsm.job;
 
 import com.rjs.fsm.job.dto.FollowUpRequest;
+import com.rjs.fsm.job.dto.JobHistoryResponse;
 import com.rjs.fsm.job.dto.JobResponse;
 import com.rjs.fsm.security.CurrentUserProvider;
 import jakarta.validation.Valid;
@@ -56,5 +57,15 @@ public class TechJobController {
     @PostMapping("/{id}/followup")
     public JobResponse markFollowUp(@PathVariable UUID id, @Valid @RequestBody FollowUpRequest req) {
         return jobService.markFollowUp(id, currentUser.getCurrentUserId(), req.getReason());
+    }
+
+    @GetMapping("/{id}/history")
+    public List<JobHistoryResponse> getJobHistory(@PathVariable UUID id) {
+        UUID techId = currentUser.getCurrentUserId();
+        JobResponse job = jobService.getJob(id);
+        if (job.getAssignedToId() == null || !techId.equals(job.getAssignedToId())) {
+            throw new com.rjs.fsm.exception.ForbiddenException("Anda tidak memiliki akses ke job ini");
+        }
+        return jobService.getJobHistory(id);
     }
 }

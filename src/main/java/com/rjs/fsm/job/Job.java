@@ -51,6 +51,9 @@ public class Job {
     @Column(name = "assigned_at")
     private OffsetDateTime assignedAt;
 
+    @Column(name = "in_transit_at")
+    private OffsetDateTime inTransitAt;
+
     @Column(name = "started_at")
     private OffsetDateTime startedAt;
 

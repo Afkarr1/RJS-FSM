@@ -120,6 +120,17 @@ export default function JobDetailPage() {
     });
   };
 
+  const statusLabel = (s) => ({
+    OPEN: 'Dibuat',
+    ASSIGNED: 'Ditugaskan',
+    IN_TRANSIT: 'Dalam Perjalanan',
+    IN_PROGRESS: 'Sedang Dikerjakan',
+    DONE: 'Selesai',
+    NEED_FOLLOWUP: 'Butuh Follow Up',
+    CLOSED: 'Ditutup',
+    CANCELLED: 'Dibatalkan',
+  }[s] || s);
+
   const handleAssign = async () => {
     if (!assignForm.technicianId) {
       toast.error('Pilih teknisi terlebih dahulu');
@@ -288,6 +299,20 @@ export default function JobDetailPage() {
             <InfoItem icon={User} label="Telepon" value={job.customerPhone} />
           )}
         </div>
+
+        {/* Timestamp milestones */}
+        {(job.assignedAt || job.inTransitAt || job.startedAt || job.finishedAt || job.closedAt) && (
+          <div className="mt-5 border-t border-neutral-100 pt-5">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-neutral-400">Rekam Waktu</p>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {job.assignedAt && <InfoItem icon={Clock} label="Ditugaskan" value={formatDateTime(job.assignedAt)} />}
+              {job.inTransitAt && <InfoItem icon={Clock} label="Dalam Perjalanan" value={formatDateTime(job.inTransitAt)} />}
+              {job.startedAt && <InfoItem icon={Clock} label="Mulai Dikerjakan" value={formatDateTime(job.startedAt)} />}
+              {job.finishedAt && <InfoItem icon={Clock} label="Selesai Dikerjakan" value={formatDateTime(job.finishedAt)} />}
+              {job.closedAt && <InfoItem icon={Clock} label="Ditutup" value={formatDateTime(job.closedAt)} />}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Photo gallery */}
@@ -345,21 +370,26 @@ export default function JobDetailPage() {
                 {/* Dot */}
                 <div
                   className={`absolute -left-6 top-1.5 h-[18px] w-[18px] rounded-full border-[3px] ${
-                    idx === 0
+                    idx === history.length - 1
                       ? 'border-primary-500 bg-primary-100'
                       : 'border-neutral-300 bg-white'
                   }`}
                 />
                 <div className="ml-2">
                   <p className="text-sm font-semibold text-neutral-800">
-                    {entry.action || entry.status}
+                    {statusLabel(entry.toStatus)}
                   </p>
-                  {entry.detail && (
-                    <p className="mt-0.5 text-sm text-neutral-500">{entry.detail}</p>
+                  {entry.fromStatus && (
+                    <p className="mt-0.5 text-xs text-neutral-400">
+                      dari {statusLabel(entry.fromStatus)}
+                    </p>
+                  )}
+                  {entry.note && (
+                    <p className="mt-0.5 text-sm text-neutral-500">{entry.note}</p>
                   )}
                   <p className="mt-1 text-xs text-neutral-400">
-                    {formatDateTime(entry.createdAt || entry.timestamp)}
-                    {entry.performedBy && ` \u2014 ${entry.performedBy}`}
+                    {formatDateTime(entry.changedAt)}
+                    {entry.changedByName && ` \u2014 ${entry.changedByName}`}
                   </p>
                 </div>
               </div>
