@@ -154,10 +154,10 @@ export default function JobListPage() {
                 )}
 
                 <div className="flex items-center gap-4 border-t border-neutral-100 pt-3 text-xs text-neutral-400">
-                  {job.technicianName && (
+                  {job.assignedToName && (
                     <div className="flex items-center gap-1.5">
                       <User className="h-3.5 w-3.5" />
-                      <span>{job.technicianName}</span>
+                      <span>{job.assignedToName}</span>
                     </div>
                   )}
                   <div className="flex items-center gap-1.5">

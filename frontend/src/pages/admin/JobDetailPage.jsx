@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -12,8 +12,9 @@ import {
   User,
   Clock,
   Image as ImageIcon,
+  X as XIcon,
 } from 'lucide-react';
-import { adminApi } from '../../api/client';
+import { adminApi, getAuthHeader } from '../../api/client';
 import StatusBadge from '../../components/StatusBadge';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import Modal from '../../components/Modal';
@@ -31,6 +32,9 @@ export default function JobDetailPage() {
   const [history, setHistory] = useState([]);
   const [technicians, setTechnicians] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [photoBlobUrls, setPhotoBlobUrls] = useState({});
+  const [lightboxUrl, setLightboxUrl] = useState(null);
+  const blobUrlsRef = useRef({});
 
   // Modal states
   const [assignModal, setAssignModal] = useState(false);
@@ -65,6 +69,36 @@ export default function JobDetailPage() {
     };
     fetchAll();
   }, [id]);
+
+  useEffect(() => {
+    if (photos.length === 0) return;
+    const authHeader = getAuthHeader();
+    const urlMap = {};
+    const promises = photos.map(async (photo) => {
+      const rawUrl = photo.downloadUrl
+        ? (() => { try { return new URL(photo.downloadUrl).pathname; } catch { return photo.downloadUrl; } })()
+        : (photo.url || '');
+      if (!rawUrl) return;
+      try {
+        const res = await fetch(rawUrl, { headers: authHeader });
+        if (res.ok) {
+          const blob = await res.blob();
+          urlMap[photo.id] = URL.createObjectURL(blob);
+        }
+      } catch {
+        // ignore individual photo errors
+      }
+    });
+    Promise.all(promises).then(() => {
+      blobUrlsRef.current = urlMap;
+      setPhotoBlobUrls({ ...urlMap });
+    });
+
+    return () => {
+      Object.values(blobUrlsRef.current).forEach((u) => URL.revokeObjectURL(u));
+      blobUrlsRef.current = {};
+    };
+  }, [photos]);
 
   const formatDate = (dateStr) => {
     if (!dateStr) return '-';
@@ -247,7 +281,7 @@ export default function JobDetailPage() {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <InfoItem icon={User} label="Customer" value={job.customerName || '-'} />
           <InfoItem icon={MapPin} label="Alamat" value={job.address || '-'} />
-          <InfoItem icon={User} label="Teknisi" value={job.technicianName || 'Belum ditugaskan'} />
+          <InfoItem icon={User} label="Teknisi" value={job.assignedToName || 'Belum ditugaskan'} />
           <InfoItem icon={Calendar} label="Tanggal Dijadwalkan" value={formatDate(job.scheduledDate)} />
           <InfoItem icon={Clock} label="Dibuat" value={formatDateTime(job.createdAt)} />
           {job.customerPhone && (
@@ -269,25 +303,27 @@ export default function JobDetailPage() {
         ) : (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
             {photos.map((photo, idx) => {
-              const photoUrl = photo.downloadUrl
-                ? (() => { try { return new URL(photo.downloadUrl).pathname; } catch { return photo.downloadUrl; } })()
-                : (photo.url || '');
+              const blobUrl = photoBlobUrls[photo.id] || '';
               return (
-                <motion.a
+                <motion.div
                   key={photo.id || idx}
-                  href={photoUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="group relative aspect-square overflow-hidden rounded-xl bg-neutral-100"
-                  whileHover={{ scale: 1.02 }}
+                  onClick={() => blobUrl && setLightboxUrl(blobUrl)}
+                  className={`group relative aspect-square overflow-hidden rounded-xl bg-neutral-100 ${blobUrl ? 'cursor-pointer' : 'opacity-60'}`}
+                  whileHover={{ scale: blobUrl ? 1.02 : 1 }}
                   transition={{ duration: 0.2 }}
                 >
-                  <img
-                    src={photoUrl}
-                    alt={photo.fileName || `Foto ${idx + 1}`}
-                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                  />
-                </motion.a>
+                  {blobUrl ? (
+                    <img
+                      src={blobUrl}
+                      alt={photo.fileName || `Foto ${idx + 1}`}
+                      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                    />
+                  ) : (
+                    <div className="flex h-full items-center justify-center">
+                      <ImageIcon className="h-8 w-8 text-neutral-300" />
+                    </div>
+                  )}
+                </motion.div>
               );
             })}
           </div>
@@ -457,6 +493,27 @@ export default function JobDetailPage() {
           </div>
         </div>
       </Modal>
+
+      {/* Photo Lightbox */}
+      {lightboxUrl && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+          onClick={() => setLightboxUrl(null)}
+        >
+          <button
+            className="absolute right-4 top-4 rounded-full bg-white/10 p-2 text-white hover:bg-white/20"
+            onClick={() => setLightboxUrl(null)}
+          >
+            <XIcon className="h-6 w-6" />
+          </button>
+          <img
+            src={lightboxUrl}
+            alt="Foto pekerjaan"
+            className="max-h-[90vh] max-w-[90vw] rounded-xl object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </motion.div>
   );
 }

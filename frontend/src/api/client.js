@@ -1,6 +1,6 @@
 const API_BASE = '/api';
 
-function getAuthHeader() {
+export function getAuthHeader() {
   const creds = localStorage.getItem('rjs_auth');
   if (!creds) return {};
   return { Authorization: `Basic ${creds}` };

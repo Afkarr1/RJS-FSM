@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Shield, LogIn } from 'lucide-react';
+import { Shield, LogIn, Lock, Eye, EyeOff } from 'lucide-react';
 import { adminApi } from '../../api/client';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import EmptyState from '../../components/EmptyState';
 import { useToast } from '../../components/Toast';
+
+const AUDIT_PASSWORD = '$$$$$$$';
 
 const TABS = [
   { key: 'activity', label: 'Log Aktivitas', icon: Shield },
@@ -13,12 +15,27 @@ const TABS = [
 
 export default function AuditPage() {
   const toast = useToast();
+  const [unlocked, setUnlocked] = useState(false);
+  const [passwordInput, setPasswordInput] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [activeTab, setActiveTab] = useState('activity');
   const [activityLogs, setActivityLogs] = useState([]);
   const [loginLogs, setLoginLogs] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+
+  const handleUnlock = () => {
+    if (passwordInput === AUDIT_PASSWORD) {
+      setUnlocked(true);
+      setPasswordError('');
+    } else {
+      setPasswordError('Password salah. Akses ditolak.');
+      setPasswordInput('');
+    }
+  };
 
   useEffect(() => {
+    if (!unlocked) return;
     const fetchLogs = async () => {
       setLoading(true);
       try {
@@ -37,7 +54,7 @@ export default function AuditPage() {
       }
     };
     fetchLogs();
-  }, [activeTab]);
+  }, [activeTab, unlocked]);
 
   const formatDateTime = (dateStr) => {
     if (!dateStr) return '-';
@@ -50,6 +67,55 @@ export default function AuditPage() {
       second: '2-digit',
     });
   };
+
+  if (!unlocked) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, ease: 'easeOut' }}
+        className="flex min-h-[60vh] items-center justify-center"
+      >
+        <div className="w-full max-w-sm rounded-2xl bg-white p-8 shadow-card ring-1 ring-neutral-100">
+          <div className="mb-6 flex flex-col items-center text-center">
+            <div className="mb-4 rounded-full bg-primary-50 p-4">
+              <Lock className="h-8 w-8 text-primary-500" />
+            </div>
+            <h1 className="text-xl font-bold text-neutral-900">Audit Log</h1>
+            <p className="mt-1 text-sm text-neutral-500">
+              Masukkan password untuk mengakses halaman ini.
+            </p>
+          </div>
+          <div className="space-y-4">
+            <div className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={passwordInput}
+                onChange={(e) => { setPasswordInput(e.target.value); setPasswordError(''); }}
+                onKeyDown={(e) => e.key === 'Enter' && handleUnlock()}
+                placeholder="Password audit log"
+                className="input-field pr-10"
+                autoFocus
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600"
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+            {passwordError && (
+              <p className="text-sm font-medium text-red-600">{passwordError}</p>
+            )}
+            <button onClick={handleUnlock} className="btn-primary w-full">
+              Masuk
+            </button>
+          </div>
+        </div>
+      </motion.div>
+    );
+  }
 
   return (
     <motion.div

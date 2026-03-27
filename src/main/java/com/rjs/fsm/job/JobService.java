@@ -376,7 +376,9 @@ public class JobService {
         String assignedName = null;
         if (job.getAssignedToId() != null) {
             assignedName = userRepo.findById(job.getAssignedToId())
-                    .map(User::getFullName).orElse(null);
+                    .map(u -> u.getFullName() != null && !u.getFullName().isBlank()
+                            ? u.getFullName() : u.getUsername())
+                    .orElse(null);
         }
         return JobResponse.from(job, assignedName);
     }
