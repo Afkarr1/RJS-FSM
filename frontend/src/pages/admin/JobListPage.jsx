@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus,
@@ -35,9 +35,10 @@ const item = {
 
 export default function JobListPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeStatus, setActiveStatus] = useState(null);
+  const [activeStatus, setActiveStatus] = useState(() => searchParams.get('status') || null);
 
   useEffect(() => {
     const fetchJobs = async () => {
@@ -93,7 +94,11 @@ export default function JobListPage() {
           return (
             <button
               key={tab.key ?? 'all'}
-              onClick={() => setActiveStatus(tab.key)}
+              onClick={() => {
+                setActiveStatus(tab.key);
+                if (tab.key) setSearchParams({ status: tab.key });
+                else setSearchParams({});
+              }}
               className={`relative rounded-full px-4 py-2 text-sm font-semibold transition-all duration-200 active:scale-[0.96] ${
                 isActive
                   ? 'bg-primary-500 text-white shadow-button'

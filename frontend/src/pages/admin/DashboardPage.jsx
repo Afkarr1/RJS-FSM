@@ -95,16 +95,16 @@ export default function DashboardPage() {
         initial="hidden"
         animate="show"
       >
-        <motion.div variants={item}>
+        <motion.div variants={item} className="cursor-pointer" onClick={() => navigate('/admin/jobs')}>
           <StatsCard icon={Briefcase} label="Total Pekerjaan" value={totalJobs} />
         </motion.div>
-        <motion.div variants={item}>
+        <motion.div variants={item} className="cursor-pointer" onClick={() => navigate('/admin/jobs?status=IN_PROGRESS')}>
           <StatsCard icon={Wrench} label="Sedang Dikerjakan" value={inProgress} />
         </motion.div>
-        <motion.div variants={item}>
+        <motion.div variants={item} className="cursor-pointer" onClick={() => navigate('/admin/jobs?status=DONE')}>
           <StatsCard icon={CheckCircle} label="Selesai" value={done} />
         </motion.div>
-        <motion.div variants={item}>
+        <motion.div variants={item} className="cursor-pointer" onClick={() => navigate('/admin/jobs?status=NEED_FOLLOWUP')}>
           <StatsCard icon={AlertTriangle} label="Butuh Follow Up" value={followUp} />
         </motion.div>
       </motion.div>
