@@ -21,6 +21,11 @@ public class FonnteWhatsAppService implements WhatsAppService {
     public FonnteWhatsAppService(AppProperties props) {
         this.apiKey = props.getFonnte().getApiKey();
         this.restTemplate = new RestTemplate();
+        if (apiKey == null || apiKey.isBlank()) {
+            log.warn("=== FONNTE API KEY NOT SET — WA berjalan dalam mode dry-run (tidak kirim) ===");
+        } else {
+            log.info("=== Fonnte WA siap, key: {}... ===", apiKey.substring(0, Math.min(8, apiKey.length())));
+        }
     }
 
     @Override

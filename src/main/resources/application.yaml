@@ -38,9 +38,9 @@ app:
     max-image-width: 1920
     compress-quality: 0.80
   fonnte:
-    api-key: ${FONNTE_API_KEY:}
+    api-key: ${FONNTE_API_KEY:FLG4voBuZE8FmuTFDLZwHWXU7bZP8K3y}
     sender: ${FONNTE_SENDER:}
-  base-url: ${APP_BASE_URL:http://localhost:8080}
+  base-url: ${APP_BASE_URL:http://localhost:3000}
 
 logging:
   level:
