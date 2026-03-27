@@ -113,13 +113,13 @@ export default function TechDashboardPage() {
           animate="visible"
           className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-3"
         >
-          <motion.div variants={itemVariants}>
+          <motion.div variants={itemVariants} className="cursor-pointer" onClick={() => navigate('/tech/jobs')}>
             <StatsCard icon={ClipboardList} label="Total Tugas" value={totalJobs} />
           </motion.div>
-          <motion.div variants={itemVariants}>
+          <motion.div variants={itemVariants} className="cursor-pointer" onClick={() => navigate('/tech/jobs?filter=active')}>
             <StatsCard icon={Wrench} label="Sedang Dikerjakan" value={inProgressJobs} />
           </motion.div>
-          <motion.div variants={itemVariants}>
+          <motion.div variants={itemVariants} className="cursor-pointer" onClick={() => navigate('/tech/jobs?filter=done')}>
             <StatsCard icon={CheckCircle2} label="Selesai" value={doneJobs} />
           </motion.div>
         </motion.div>

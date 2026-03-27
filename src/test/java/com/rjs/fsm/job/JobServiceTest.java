@@ -615,7 +615,7 @@ class JobServiceTest {
         when(jobRepo.save(any(Job.class))).thenAnswer(inv -> inv.getArgument(0));
         when(userRepo.findById(TECH_ID)).thenReturn(Optional.of(buildTech(TECH_ID)));
 
-        JobResponse res = jobService.markFollowUp(JOB_ID, TECH_ID);
+        JobResponse res = jobService.markFollowUp(JOB_ID, TECH_ID, "Perlu tindak lanjut");
 
         assertEquals(JobStatus.NEED_FOLLOWUP, res.getStatus());
     }
@@ -626,7 +626,7 @@ class JobServiceTest {
         when(jobRepo.findByIdAndTenantId(JOB_ID, TENANT_ID)).thenReturn(Optional.of(job));
 
         assertThrows(ForbiddenException.class,
-                () -> jobService.markFollowUp(JOB_ID, TECH_ID));
+                () -> jobService.markFollowUp(JOB_ID, TECH_ID, "Perlu tindak lanjut"));
     }
 
     @Test
@@ -635,7 +635,7 @@ class JobServiceTest {
         when(jobRepo.findByIdAndTenantId(JOB_ID, TENANT_ID)).thenReturn(Optional.of(job));
 
         BadRequestException ex = assertThrows(BadRequestException.class,
-                () -> jobService.markFollowUp(JOB_ID, TECH_ID));
+                () -> jobService.markFollowUp(JOB_ID, TECH_ID, "Perlu tindak lanjut"));
         assertTrue(ex.getMessage().contains("IN_PROGRESS"));
     }
 

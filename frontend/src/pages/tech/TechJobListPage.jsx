@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Briefcase, Calendar, User, Search } from 'lucide-react';
+import { Briefcase, Calendar, User } from 'lucide-react';
 import { techApi } from '../../api/client';
 import StatusBadge from '../../components/StatusBadge';
 import LoadingSpinner from '../../components/LoadingSpinner';
@@ -20,20 +20,31 @@ const itemVariants = {
   visible: { opacity: 1, y: 0, transition: { duration: 0.35, ease: 'easeOut' } },
 };
 
+const FILTERS = [
+  { key: 'all', label: 'Semua' },
+  { key: 'active', label: 'Aktif' },
+  { key: 'done', label: 'Selesai' },
+];
+
+const ACTIVE_STATUSES = ['ASSIGNED', 'IN_PROGRESS', 'NEED_FOLLOWUP'];
+const DONE_STATUSES = ['DONE', 'CLOSED'];
+
 export default function TechJobListPage() {
-  const [jobs, setJobs] = useState([]);
+  const [allJobs, setAllJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [activeOnly, setActiveOnly] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
+
+  const filter = searchParams.get('filter') || 'all';
 
   useEffect(() => {
     async function fetchJobs() {
       setLoading(true);
       setError('');
       try {
-        const data = await techApi.getJobs(activeOnly);
-        setJobs(Array.isArray(data) ? data : []);
+        const data = await techApi.getJobs(false);
+        setAllJobs(Array.isArray(data) ? data : []);
       } catch (err) {
         setError('Gagal memuat daftar tugas.');
       } finally {
@@ -41,7 +52,14 @@ export default function TechJobListPage() {
       }
     }
     fetchJobs();
-  }, [activeOnly]);
+  }, []);
+
+  const jobs =
+    filter === 'active'
+      ? allJobs.filter((j) => ACTIVE_STATUSES.includes(j.status))
+      : filter === 'done'
+        ? allJobs.filter((j) => DONE_STATUSES.includes(j.status))
+        : allJobs;
 
   const formatDate = (dateStr) => {
     if (!dateStr) return '-';
@@ -73,7 +91,7 @@ export default function TechJobListPage() {
           </p>
         </motion.div>
 
-        {/* Filter Toggle */}
+        {/* Filter Tabs */}
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
@@ -81,26 +99,22 @@ export default function TechJobListPage() {
           className="mb-6 flex items-center gap-2"
         >
           <div className="inline-flex rounded-xl bg-white p-1 shadow-sm ring-1 ring-neutral-150">
-            <button
-              onClick={() => setActiveOnly(false)}
-              className={`rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200 ${
-                !activeOnly
-                  ? 'bg-primary-500 text-white shadow-button'
-                  : 'text-neutral-500 hover:text-neutral-700'
-              }`}
-            >
-              Semua
-            </button>
-            <button
-              onClick={() => setActiveOnly(true)}
-              className={`rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200 ${
-                activeOnly
-                  ? 'bg-primary-500 text-white shadow-button'
-                  : 'text-neutral-500 hover:text-neutral-700'
-              }`}
-            >
-              Aktif Saja
-            </button>
+            {FILTERS.map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => {
+                  if (tab.key === 'all') setSearchParams({});
+                  else setSearchParams({ filter: tab.key });
+                }}
+                className={`rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200 ${
+                  filter === tab.key
+                    ? 'bg-primary-500 text-white shadow-button'
+                    : 'text-neutral-500 hover:text-neutral-700'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
           </div>
         </motion.div>
 
@@ -123,9 +137,11 @@ export default function TechJobListPage() {
             icon={Briefcase}
             title="Belum ada tugas"
             description={
-              activeOnly
+              filter === 'active'
                 ? 'Tidak ada tugas aktif saat ini.'
-                : 'Belum ada tugas yang ditugaskan kepada Anda.'
+                : filter === 'done'
+                  ? 'Belum ada tugas yang selesai.'
+                  : 'Belum ada tugas yang ditugaskan kepada Anda.'
             }
           />
         ) : (
