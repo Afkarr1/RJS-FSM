@@ -14,6 +14,8 @@ export default function CreateJobPage() {
     address: '', scheduledDate: '', assignToId: '', requiresPhoto: true,
   });
 
+  const todayWIB = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Jakarta' });
+
   useEffect(() => { adminApi.getTechnicians().then(setTechs).catch(() => {}); }, []);
 
   const set = (k, v) => setForm({ ...form, [k]: v });
@@ -54,7 +56,7 @@ export default function CreateJobPage() {
           <div className="grid sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-neutral-700 mb-1">Tanggal Jadwal</label>
-              <input type="date" value={form.scheduledDate} onChange={e => set('scheduledDate', e.target.value)} className="input-field" />
+              <input type="date" value={form.scheduledDate} min={todayWIB} onChange={e => set('scheduledDate', e.target.value)} className="input-field" />
             </div>
             <div>
               <label className="block text-sm font-medium text-neutral-700 mb-1">Tugaskan ke Teknisi</label>

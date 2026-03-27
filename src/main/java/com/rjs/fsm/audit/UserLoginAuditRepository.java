@@ -10,4 +10,6 @@ public interface UserLoginAuditRepository extends JpaRepository<UserLoginAudit, 
     List<UserLoginAudit> findByTenantIdOrderByLoggedInAtDesc(UUID tenantId);
 
     List<UserLoginAudit> findByUserIdOrderByLoggedInAtDesc(UUID userId);
+
+    List<UserLoginAudit> findAllByOrderByLoggedInAtDesc();
 }

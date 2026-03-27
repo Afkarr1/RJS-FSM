@@ -34,6 +34,9 @@ public class JobStatusHistory {
     @Column(name = "changed_at", nullable = false)
     private OffsetDateTime changedAt;
 
+    @Column(columnDefinition = "TEXT")
+    private String note;
+
     @PrePersist
     void onCreate() {
         if (id == null) id = UUID.randomUUID();

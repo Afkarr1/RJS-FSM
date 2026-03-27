@@ -15,7 +15,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.UUID;
 
@@ -58,6 +60,8 @@ public class JobService {
         job.setRequiresPhoto(req.getRequiresPhoto() != null ? req.getRequiresPhoto() : true);
         job.setStatus(JobStatus.OPEN);
 
+        validateScheduledDate(req.getScheduledDate());
+
         if (req.getAssignToId() != null) {
             User tech = validateTechnician(req.getAssignToId(), tenantId);
             job.setAssignedToId(tech.getId());
@@ -66,7 +70,7 @@ public class JobService {
         }
 
         job = jobRepo.save(job);
-        recordHistory(job, null, job.getStatus(), adminId);
+        recordHistory(job, null, job.getStatus(), adminId, null);
         auditService.logAction(adminId, "CREATE_JOB", "JOBS", job.getId(), "Job created: " + job.getTitle());
 
         log.info("Job created: id={}, status={}", job.getId(), job.getStatus());
@@ -82,6 +86,8 @@ public class JobService {
             throw new BadRequestException("Job hanya bisa di-assign dari status OPEN atau NEED_FOLLOWUP");
         }
 
+        if (req.getScheduledDate() != null) validateScheduledDate(req.getScheduledDate());
+
         User tech = validateTechnician(req.getTechnicianId(), tenantId);
 
         JobStatus oldStatus = job.getStatus();
@@ -93,7 +99,7 @@ public class JobService {
         }
 
         job = jobRepo.save(job);
-        recordHistory(job, oldStatus, JobStatus.ASSIGNED, adminId);
+        recordHistory(job, oldStatus, JobStatus.ASSIGNED, adminId, null);
         auditService.logAction(adminId, "ASSIGN_JOB", "JOBS", job.getId(),
                 "Assigned to technician: " + tech.getFullName());
 
@@ -109,6 +115,8 @@ public class JobService {
             throw new BadRequestException("Hanya job dengan status NEED_FOLLOWUP yang bisa dijadwalkan ulang");
         }
 
+        validateScheduledDate(req.getScheduledDate());
+
         JobStatus oldStatus = job.getStatus();
         job.setScheduledDate(req.getScheduledDate());
         job.setStatus(JobStatus.ASSIGNED);
@@ -123,7 +131,7 @@ public class JobService {
         }
 
         job = jobRepo.save(job);
-        recordHistory(job, oldStatus, JobStatus.ASSIGNED, adminId);
+        recordHistory(job, oldStatus, JobStatus.ASSIGNED, adminId, null);
         auditService.logAction(adminId, "RESCHEDULE_JOB", "JOBS", job.getId(),
                 "Rescheduled to " + req.getScheduledDate());
 
@@ -143,7 +151,7 @@ public class JobService {
         job.setClosedAt(OffsetDateTime.now());
 
         job = jobRepo.save(job);
-        recordHistory(job, oldStatus, JobStatus.CLOSED, adminId);
+        recordHistory(job, oldStatus, JobStatus.CLOSED, adminId, null);
         auditService.logAction(adminId, "CLOSE_JOB", "JOBS", job.getId(), "Job closed");
 
         return toResponse(job);
@@ -175,7 +183,9 @@ public class JobService {
         return historyRepo.findByJobIdAndTenantIdOrderByChangedAtAsc(jobId, tenantId).stream()
                 .map(h -> {
                     String name = userRepo.findById(h.getChangedBy())
-                            .map(User::getFullName).orElse("Unknown");
+                            .map(u -> u.getFullName() != null && !u.getFullName().isBlank()
+                                    ? u.getFullName() : u.getUsername())
+                            .orElse("Unknown");
                     return JobHistoryResponse.from(h, name);
                 }).toList();
     }
@@ -192,10 +202,29 @@ public class JobService {
     @Transactional(readOnly = true)
     public List<JobResponse> listMyActiveJobs(UUID technicianId) {
         UUID tenantId = TenantContext.require();
-        List<JobStatus> activeStatuses = List.of(JobStatus.ASSIGNED, JobStatus.IN_PROGRESS);
+        List<JobStatus> activeStatuses = List.of(JobStatus.ASSIGNED, JobStatus.IN_TRANSIT, JobStatus.IN_PROGRESS);
         return jobRepo.findByAssignedToIdAndTenantIdAndStatusInOrderByScheduledDateAsc(
                 technicianId, tenantId, activeStatuses).stream()
                 .map(this::toResponse).toList();
+    }
+
+    @Transactional
+    public JobResponse startTransit(UUID jobId, UUID technicianId) {
+        Job job = getJobEntity(jobId);
+        validateTechOwnership(job, technicianId);
+
+        if (job.getStatus() != JobStatus.ASSIGNED) {
+            throw new BadRequestException("Job hanya bisa dalam perjalanan dari status ASSIGNED");
+        }
+
+        JobStatus oldStatus = job.getStatus();
+        job.setStatus(JobStatus.IN_TRANSIT);
+
+        job = jobRepo.save(job);
+        recordHistory(job, oldStatus, JobStatus.IN_TRANSIT, technicianId, null);
+        auditService.logAction(technicianId, "TRANSIT_JOB", "JOBS", job.getId(), "Teknisi dalam perjalanan");
+
+        return toResponse(job);
     }
 
     @Transactional
@@ -203,8 +232,8 @@ public class JobService {
         Job job = getJobEntity(jobId);
         validateTechOwnership(job, technicianId);
 
-        if (job.getStatus() != JobStatus.ASSIGNED) {
-            throw new BadRequestException("Job hanya bisa di-start dari status ASSIGNED");
+        if (job.getStatus() != JobStatus.IN_TRANSIT) {
+            throw new BadRequestException("Job hanya bisa di-start dari status IN_TRANSIT (Dalam Perjalanan)");
         }
 
         JobStatus oldStatus = job.getStatus();
@@ -212,7 +241,7 @@ public class JobService {
         job.setStartedAt(OffsetDateTime.now());
 
         job = jobRepo.save(job);
-        recordHistory(job, oldStatus, JobStatus.IN_PROGRESS, technicianId);
+        recordHistory(job, oldStatus, JobStatus.IN_PROGRESS, technicianId, null);
         auditService.logAction(technicianId, "START_JOB", "JOBS", job.getId(), "Job started");
 
         return toResponse(job);
@@ -238,7 +267,7 @@ public class JobService {
         job.setFinishedAt(OffsetDateTime.now());
 
         job = jobRepo.save(job);
-        recordHistory(job, oldStatus, JobStatus.DONE, technicianId);
+        recordHistory(job, oldStatus, JobStatus.DONE, technicianId, null);
         auditService.logAction(technicianId, "FINISH_JOB", "JOBS", job.getId(), "Job finished");
 
         // Auto-send review link to customer via WhatsApp
@@ -251,7 +280,7 @@ public class JobService {
     }
 
     @Transactional
-    public JobResponse markFollowUp(UUID jobId, UUID technicianId) {
+    public JobResponse markFollowUp(UUID jobId, UUID technicianId, String reason) {
         Job job = getJobEntity(jobId);
         validateTechOwnership(job, technicianId);
 
@@ -263,8 +292,8 @@ public class JobService {
         job.setStatus(JobStatus.NEED_FOLLOWUP);
 
         job = jobRepo.save(job);
-        recordHistory(job, oldStatus, JobStatus.NEED_FOLLOWUP, technicianId);
-        auditService.logAction(technicianId, "FOLLOWUP_JOB", "JOBS", job.getId(), "Job marked as follow-up");
+        recordHistory(job, oldStatus, JobStatus.NEED_FOLLOWUP, technicianId, reason);
+        auditService.logAction(technicianId, "FOLLOWUP_JOB", "JOBS", job.getId(), "Follow up: " + reason);
 
         return toResponse(job);
     }
@@ -284,7 +313,7 @@ public class JobService {
         job.setStatus(JobStatus.CANCELLED);
 
         job = jobRepo.save(job);
-        recordHistory(job, oldStatus, JobStatus.CANCELLED, adminId);
+        recordHistory(job, oldStatus, JobStatus.CANCELLED, adminId, null);
         auditService.logAction(adminId, "CANCEL_JOB", "JOBS", job.getId(), "Job cancelled");
 
         log.info("Job cancelled: id={}, previousStatus={}", job.getId(), oldStatus);
@@ -324,14 +353,23 @@ public class JobService {
         }
     }
 
-    private void recordHistory(Job job, JobStatus from, JobStatus to, UUID changedBy) {
+    private void recordHistory(Job job, JobStatus from, JobStatus to, UUID changedBy, String note) {
         JobStatusHistory h = new JobStatusHistory();
         h.setTenantId(job.getTenantId());
         h.setJobId(job.getId());
         h.setFromStatus(from != null ? from.name() : null);
         h.setToStatus(to.name());
         h.setChangedBy(changedBy);
+        h.setNote(note);
         historyRepo.save(h);
+    }
+
+    private void validateScheduledDate(LocalDate date) {
+        if (date == null) return;
+        LocalDate todayWIB = LocalDate.now(ZoneId.of("Asia/Jakarta"));
+        if (date.isBefore(todayWIB)) {
+            throw new BadRequestException("Tanggal jadwal tidak boleh sebelum hari ini (WIB)");
+        }
     }
 
     private JobResponse toResponse(Job job) {

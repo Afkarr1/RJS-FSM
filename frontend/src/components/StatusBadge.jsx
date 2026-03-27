@@ -3,6 +3,7 @@ import React from 'react';
 const STATUS_MAP = {
   OPEN: { label: 'Baru', className: 'badge-open' },
   ASSIGNED: { label: 'Ditugaskan', className: 'badge-assigned' },
+  IN_TRANSIT: { label: 'Dalam Perjalanan', className: 'badge-in-transit' },
   IN_PROGRESS: { label: 'Dikerjakan', className: 'badge-in-progress' },
   DONE: { label: 'Selesai', className: 'badge-done' },
   NEED_FOLLOWUP: { label: 'Follow Up', className: 'badge-need-followup' },

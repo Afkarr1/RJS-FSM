@@ -96,9 +96,10 @@ export const adminApi = {
 export const techApi = {
   getJobs: (activeOnly = false) => api.get(`/tech/jobs?activeOnly=${activeOnly}`),
   getJob: (id) => api.get(`/tech/jobs/${id}`),
+  transit: (id) => api.post(`/tech/jobs/${id}/transit`),
   startJob: (id) => api.post(`/tech/jobs/${id}/start`),
   finishJob: (id) => api.post(`/tech/jobs/${id}/finish`),
-  followUp: (id) => api.post(`/tech/jobs/${id}/followup`),
+  followUp: (id, reason) => api.post(`/tech/jobs/${id}/followup`, { reason }),
   uploadPhoto: (jobId, formData) => api.upload(`/tech/jobs/${jobId}/photos`, formData),
   getPhotos: (jobId) => api.get(`/tech/jobs/${jobId}/photos`),
 };

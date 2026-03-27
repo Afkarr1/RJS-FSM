@@ -1,7 +1,9 @@
 package com.rjs.fsm.job;
 
+import com.rjs.fsm.job.dto.FollowUpRequest;
 import com.rjs.fsm.job.dto.JobResponse;
 import com.rjs.fsm.security.CurrentUserProvider;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -36,6 +38,11 @@ public class TechJobController {
         return job;
     }
 
+    @PostMapping("/{id}/transit")
+    public JobResponse startTransit(@PathVariable UUID id) {
+        return jobService.startTransit(id, currentUser.getCurrentUserId());
+    }
+
     @PostMapping("/{id}/start")
     public JobResponse startJob(@PathVariable UUID id) {
         return jobService.startJob(id, currentUser.getCurrentUserId());
@@ -47,7 +54,7 @@ public class TechJobController {
     }
 
     @PostMapping("/{id}/followup")
-    public JobResponse markFollowUp(@PathVariable UUID id) {
-        return jobService.markFollowUp(id, currentUser.getCurrentUserId());
+    public JobResponse markFollowUp(@PathVariable UUID id, @Valid @RequestBody FollowUpRequest req) {
+        return jobService.markFollowUp(id, currentUser.getCurrentUserId(), req.getReason());
     }
 }
