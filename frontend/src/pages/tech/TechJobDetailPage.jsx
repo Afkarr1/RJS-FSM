@@ -15,7 +15,9 @@ import {
   MapPin,
   FileText,
   ZoomIn,
+  Truck,
 } from 'lucide-react';
+import * as faceapi from 'face-api.js';
 import { techApi } from '../../api/client';
 import StatusBadge from '../../components/StatusBadge';
 import LoadingSpinner from '../../components/LoadingSpinner';
@@ -40,14 +42,32 @@ export default function TechJobDetailPage() {
   const [error, setError] = useState('');
   const [actionLoading, setActionLoading] = useState('');
 
+  // Face detection model
+  const [modelLoaded, setModelLoaded] = useState(false);
+  const [detecting, setDetecting] = useState(false);
+
   // Photo upload state
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [previews, setPreviews] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
 
+  // Follow up modal
+  const [followUpModal, setFollowUpModal] = useState(false);
+  const [followUpReason, setFollowUpReason] = useState('');
+  const [followUpLoading, setFollowUpLoading] = useState(false);
+
   // Lightbox
   const [lightboxUrl, setLightboxUrl] = useState(null);
+
+  // Load face detection model on mount
+  useEffect(() => {
+    faceapi.nets.tinyFaceDetector.loadFromUri('/models')
+      .then(() => setModelLoaded(true))
+      .catch(() => {
+        // Model failed to load — face detection will be skipped
+      });
+  }, []);
 
   const fetchJob = useCallback(async () => {
     try {
@@ -83,13 +103,51 @@ export default function TechJobDetailPage() {
     return () => urls.forEach((u) => URL.revokeObjectURL(u));
   }, [selectedFiles]);
 
-  const handleFilesSelected = (files) => {
+  const hasFaceInImage = async (file) => {
+    try {
+      const img = await faceapi.bufferToImage(file);
+      const result = await faceapi.detectSingleFace(
+        img,
+        new faceapi.TinyFaceDetectorOptions({ scoreThreshold: 0.4 })
+      );
+      return !!result;
+    } catch {
+      return false;
+    }
+  };
+
+  const handleFilesSelected = async (files) => {
     const validFiles = Array.from(files).filter((f) => f.type.startsWith('image/'));
     if (validFiles.length === 0) {
       toast.error('Pilih file gambar (JPG, PNG, dll).');
       return;
     }
-    setSelectedFiles((prev) => [...prev, ...validFiles]);
+
+    if (!modelLoaded) {
+      toast.error('Model deteksi wajah belum siap, coba lagi sebentar.');
+      return;
+    }
+
+    setDetecting(true);
+    const accepted = [];
+    const rejected = [];
+
+    for (const file of validFiles) {
+      const hasFace = await hasFaceInImage(file);
+      if (hasFace) {
+        accepted.push(file);
+      } else {
+        rejected.push(file.name);
+      }
+    }
+    setDetecting(false);
+
+    if (rejected.length > 0) {
+      toast.error(`Wajah tidak terdeteksi pada: ${rejected.join(', ')}. Foto harus memuat wajah teknisi.`);
+    }
+    if (accepted.length > 0) {
+      setSelectedFiles((prev) => [...prev, ...accepted]);
+    }
   };
 
   const handleDrop = (e) => {
@@ -125,15 +183,15 @@ export default function TechJobDetailPage() {
   const handleAction = async (action) => {
     setActionLoading(action);
     try {
-      if (action === 'start') {
+      if (action === 'transit') {
+        await techApi.transit(id);
+        toast.success('Status: Dalam Perjalanan');
+      } else if (action === 'start') {
         await techApi.startJob(id);
         toast.success('Tugas dimulai!');
       } else if (action === 'finish') {
         await techApi.finishJob(id);
         toast.success('Tugas selesai!');
-      } else if (action === 'followup') {
-        await techApi.followUp(id);
-        toast.success('Follow up berhasil ditandai.');
       }
       await fetchJob();
     } catch (err) {
@@ -141,6 +199,23 @@ export default function TechJobDetailPage() {
       toast.error(msg);
     } finally {
       setActionLoading('');
+    }
+  };
+
+  const handleFollowUpSubmit = async () => {
+    if (!followUpReason.trim()) return;
+    setFollowUpLoading(true);
+    try {
+      await techApi.followUp(id, followUpReason.trim());
+      toast.success('Follow up berhasil ditandai.');
+      setFollowUpModal(false);
+      setFollowUpReason('');
+      await fetchJob();
+    } catch (err) {
+      const msg = err?.message || 'Gagal melakukan follow up.';
+      toast.error(msg);
+    } finally {
+      setFollowUpLoading(false);
     }
   };
 
@@ -176,9 +251,8 @@ export default function TechJobDetailPage() {
     );
   }
 
-  const canUploadPhoto = job.status === 'IN_PROGRESS' || job.status === 'ASSIGNED';
+  const canUploadPhoto = job.status === 'IN_TRANSIT' || job.status === 'IN_PROGRESS';
   const requiresPhoto = job.requiresPhoto;
-  const photoUploaded = photos.length > 0 || selectedFiles.length > 0;
   const finishDisabled = requiresPhoto && photos.length === 0;
 
   return (
@@ -264,7 +338,26 @@ export default function TechJobDetailPage() {
           transition={{ duration: 0.4, delay: 0.2 }}
           className="mb-6"
         >
+          {/* ASSIGNED: Button "Dalam Perjalanan" */}
           {job.status === 'ASSIGNED' && (
+            <motion.button
+              whileHover={{ scale: 1.02, y: -1 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={() => handleAction('transit')}
+              disabled={actionLoading === 'transit'}
+              className="btn-primary flex w-full items-center justify-center gap-2 py-3 text-base sm:w-auto"
+            >
+              {actionLoading === 'transit' ? (
+                <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+              ) : (
+                <Truck size={18} />
+              )}
+              Dalam Perjalanan
+            </motion.button>
+          )}
+
+          {/* IN_TRANSIT: Button "Mulai Kerjakan" */}
+          {job.status === 'IN_TRANSIT' && (
             <motion.button
               whileHover={{ scale: 1.02, y: -1 }}
               whileTap={{ scale: 0.97 }}
@@ -281,6 +374,7 @@ export default function TechJobDetailPage() {
             </motion.button>
           )}
 
+          {/* IN_PROGRESS: Selesai + Follow Up */}
           {job.status === 'IN_PROGRESS' && (
             <div className="flex flex-wrap gap-3">
               <motion.button
@@ -297,11 +391,6 @@ export default function TechJobDetailPage() {
                   <CheckCircle2 size={18} />
                 )}
                 Selesai
-                {finishDisabled && (
-                  <span className="absolute -top-10 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-lg bg-neutral-800 px-3 py-1.5 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none shadow-lg">
-                    Upload foto terlebih dahulu
-                  </span>
-                )}
               </motion.button>
 
               <motion.button
@@ -317,15 +406,10 @@ export default function TechJobDetailPage() {
               <motion.button
                 whileHover={{ scale: 1.02, y: -1 }}
                 whileTap={{ scale: 0.97 }}
-                onClick={() => handleAction('followup')}
-                disabled={actionLoading === 'followup'}
+                onClick={() => setFollowUpModal(true)}
                 className="flex items-center gap-2 rounded-xl border-2 border-orange-200 bg-orange-50 px-6 py-3 font-semibold text-orange-700 transition-all duration-200 hover:border-orange-300 hover:bg-orange-100 active:scale-[0.97]"
               >
-                {actionLoading === 'followup' ? (
-                  <div className="h-5 w-5 animate-spin rounded-full border-2 border-orange-300 border-t-orange-600" />
-                ) : (
-                  <AlertTriangle size={18} />
-                )}
+                <AlertTriangle size={18} />
                 Butuh Follow Up
               </motion.button>
             </div>
@@ -354,14 +438,14 @@ export default function TechJobDetailPage() {
             <h2 className="mb-4 text-base font-semibold text-neutral-800 flex items-center gap-2">
               <Camera size={18} className="text-primary-600" />
               Upload Foto
+              {!modelLoaded && (
+                <span className="ml-2 text-xs font-normal text-neutral-400">(Memuat model deteksi wajah...)</span>
+              )}
             </h2>
 
             {/* Drag & Drop Area */}
             <div
-              onDragOver={(e) => {
-                e.preventDefault();
-                setDragOver(true);
-              }}
+              onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
               onDragLeave={() => setDragOver(false)}
               onDrop={handleDrop}
               onClick={() => fileInputRef.current?.click()}
@@ -371,16 +455,23 @@ export default function TechJobDetailPage() {
                   : 'border-neutral-200 bg-neutral-50 hover:border-primary-300 hover:bg-primary-50/50'
               }`}
             >
-              <Upload
-                size={32}
-                className={`mb-3 transition-colors ${
-                  dragOver ? 'text-primary-500' : 'text-neutral-300'
-                }`}
-              />
-              <p className="text-sm font-medium text-neutral-600">
-                Seret foto ke sini atau <span className="text-primary-600">klik untuk memilih</span>
-              </p>
-              <p className="mt-1 text-xs text-neutral-400">JPG, PNG, WEBP</p>
+              {detecting ? (
+                <div className="flex flex-col items-center gap-2">
+                  <div className="h-8 w-8 animate-spin rounded-full border-2 border-neutral-300 border-t-primary-500" />
+                  <p className="text-sm text-neutral-500">Mendeteksi wajah...</p>
+                </div>
+              ) : (
+                <>
+                  <Upload
+                    size={32}
+                    className={`mb-3 transition-colors ${dragOver ? 'text-primary-500' : 'text-neutral-300'}`}
+                  />
+                  <p className="text-sm font-medium text-neutral-600">
+                    Seret foto ke sini atau <span className="text-primary-600">klik untuk memilih</span>
+                  </p>
+                  <p className="mt-1 text-xs text-neutral-400">JPG, PNG, WEBP — wajah teknisi harus terdeteksi</p>
+                </>
+              )}
               <input
                 ref={fileInputRef}
                 type="file"
@@ -415,10 +506,7 @@ export default function TechJobDetailPage() {
                           className="h-full w-full object-cover"
                         />
                         <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            removeFile(i);
-                          }}
+                          onClick={(e) => { e.stopPropagation(); removeFile(i); }}
                           className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-white opacity-0 shadow-sm transition-opacity group-hover:opacity-100"
                         >
                           <X size={12} />
@@ -487,6 +575,74 @@ export default function TechJobDetailPage() {
             </div>
           </motion.div>
         )}
+
+        {/* Follow Up Modal */}
+        <AnimatePresence>
+          {followUpModal && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setFollowUpModal(false)}
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
+            >
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                onClick={(e) => e.stopPropagation()}
+                className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"
+              >
+                <div className="mb-4 flex items-center gap-3">
+                  <div className="rounded-xl bg-orange-100 p-2">
+                    <AlertTriangle size={20} className="text-orange-600" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-neutral-800">Butuh Follow Up</h3>
+                </div>
+
+                <p className="mb-4 text-sm text-neutral-500">
+                  Jelaskan alasan mengapa pekerjaan ini membutuhkan tindak lanjut.
+                </p>
+
+                <textarea
+                  value={followUpReason}
+                  onChange={(e) => setFollowUpReason(e.target.value)}
+                  placeholder="Contoh: Spare part tidak tersedia, perlu dipesan terlebih dahulu..."
+                  rows={4}
+                  maxLength={500}
+                  className="input-field mb-1 min-h-[100px] resize-y"
+                  autoFocus
+                />
+                <p className="mb-4 text-right text-xs text-neutral-400">
+                  {followUpReason.length}/500
+                </p>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => { setFollowUpModal(false); setFollowUpReason(''); }}
+                    className="btn-ghost flex-1"
+                    disabled={followUpLoading}
+                  >
+                    Batal
+                  </button>
+                  <button
+                    onClick={handleFollowUpSubmit}
+                    disabled={!followUpReason.trim() || followUpLoading}
+                    className="flex flex-1 items-center justify-center gap-2 rounded-xl border-2 border-orange-200 bg-orange-50 px-4 py-2.5 font-semibold text-orange-700 transition-all hover:bg-orange-100 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {followUpLoading ? (
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-orange-300 border-t-orange-600" />
+                    ) : (
+                      <AlertTriangle size={16} />
+                    )}
+                    Konfirmasi Follow Up
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Lightbox */}
         <AnimatePresence>

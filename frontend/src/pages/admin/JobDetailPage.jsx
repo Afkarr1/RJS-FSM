@@ -24,6 +24,8 @@ export default function JobDetailPage() {
   const navigate = useNavigate();
   const toast = useToast();
 
+  const todayWIB = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Jakarta' });
+
   const [job, setJob] = useState(null);
   const [photos, setPhotos] = useState([]);
   const [history, setHistory] = useState([]);
@@ -355,6 +357,7 @@ export default function JobDetailPage() {
             <input
               type="date"
               value={assignForm.scheduledDate}
+              min={todayWIB}
               onChange={(e) => setAssignForm((f) => ({ ...f, scheduledDate: e.target.value }))}
               className="input-field"
             />
@@ -384,6 +387,7 @@ export default function JobDetailPage() {
             <input
               type="date"
               value={rescheduleForm.scheduledDate}
+              min={todayWIB}
               onChange={(e) =>
                 setRescheduleForm((f) => ({ ...f, scheduledDate: e.target.value }))
               }

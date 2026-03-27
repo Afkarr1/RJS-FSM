@@ -6,6 +6,7 @@ import java.util.Set;
 public enum JobStatus {
     OPEN,
     ASSIGNED,
+    IN_TRANSIT,
     IN_PROGRESS,
     DONE,
     NEED_FOLLOWUP,
@@ -18,7 +19,8 @@ public enum JobStatus {
      */
     private static final Map<JobStatus, Set<JobStatus>> TRANSITIONS = Map.of(
             OPEN,           Set.of(ASSIGNED),
-            ASSIGNED,       Set.of(IN_PROGRESS),
+            ASSIGNED,       Set.of(IN_TRANSIT),
+            IN_TRANSIT,     Set.of(IN_PROGRESS),
             IN_PROGRESS,    Set.of(DONE, NEED_FOLLOWUP),
             DONE,           Set.of(CLOSED),
             NEED_FOLLOWUP,  Set.of(ASSIGNED)
@@ -36,7 +38,8 @@ public enum JobStatus {
      * Transitions that only TECHNICIAN can perform.
      */
     private static final Set<String> TECH_ONLY = Set.of(
-            "ASSIGNED->IN_PROGRESS",
+            "ASSIGNED->IN_TRANSIT",
+            "IN_TRANSIT->IN_PROGRESS",
             "IN_PROGRESS->DONE",
             "IN_PROGRESS->NEED_FOLLOWUP"
     );
