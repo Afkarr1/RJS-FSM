@@ -580,7 +580,7 @@ class JobServiceTest {
         when(userRepo.findById(TECH_ID)).thenReturn(Optional.of(buildTech(TECH_ID)));
 
         ArgumentCaptor<Job> captor = ArgumentCaptor.forClass(Job.class);
-        JobResponse res = jobService.closeJob(JOB_ID, ADMIN_ID);
+        JobResponse res = jobService.closeJob(JOB_ID, ADMIN_ID, null);
 
         verify(jobRepo).save(captor.capture());
         assertEquals(JobStatus.CLOSED, res.getStatus());
@@ -593,7 +593,7 @@ class JobServiceTest {
         when(jobRepo.findByIdAndTenantId(JOB_ID, TENANT_ID)).thenReturn(Optional.of(job));
 
         BadRequestException ex = assertThrows(BadRequestException.class,
-                () -> jobService.closeJob(JOB_ID, ADMIN_ID));
+                () -> jobService.closeJob(JOB_ID, ADMIN_ID, null));
         assertTrue(ex.getMessage().contains("DONE"));
     }
 
@@ -602,7 +602,7 @@ class JobServiceTest {
         when(jobRepo.findByIdAndTenantId(JOB_ID, TENANT_ID)).thenReturn(Optional.empty());
 
         assertThrows(NotFoundException.class,
-                () -> jobService.closeJob(JOB_ID, ADMIN_ID));
+                () -> jobService.closeJob(JOB_ID, ADMIN_ID, null));
     }
 
     // ── markFollowUp ─────────────────────────────────────────────────────────
