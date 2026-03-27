@@ -39,3 +39,4 @@ build/
 uploads/
 *.log
 .env
+.env.properties

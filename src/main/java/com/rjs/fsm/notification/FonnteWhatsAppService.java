@@ -60,6 +60,8 @@ public class FonnteWhatsAppService implements WhatsAppService {
         if (phone == null) return "";
         String cleaned = phone.replaceAll("[^0-9+]", "");
         if (cleaned.startsWith("+")) cleaned = cleaned.substring(1);
+        // Convert local Indonesian format: 08xxx → 628xxx
+        if (cleaned.startsWith("0")) cleaned = "62" + cleaned.substring(1);
         return cleaned;
     }
 }
