@@ -25,6 +25,8 @@ public class JobResponse {
     private LocalDate scheduledDate;
     private boolean requiresPhoto;
     private boolean photoUploaded;
+    private String spareParts;
+    private String closingNote;
     private OffsetDateTime assignedAt;
     private OffsetDateTime inTransitAt;
     private OffsetDateTime startedAt;
@@ -40,6 +42,7 @@ public class JobResponse {
                 j.getStatus(), j.getAssignedToId(), assignedToName,
                 j.getCreatedById(), j.getScheduledDate(),
                 j.isRequiresPhoto(), j.isPhotoUploaded(),
+                j.getSpareParts(), j.getClosingNote(),
                 j.getAssignedAt(), j.getInTransitAt(), j.getStartedAt(), j.getFinishedAt(), j.getClosedAt(),
                 j.getCreatedAt(), j.getUpdatedAt()
         );

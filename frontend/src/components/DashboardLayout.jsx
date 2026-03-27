@@ -7,6 +7,7 @@ import {
   Users,
   Users2,
   Shield,
+  BookOpen,
   LogOut,
   Wrench,
   Menu,
@@ -21,6 +22,7 @@ const ADMIN_NAV = [
   { label: 'Pelanggan', icon: Users2, path: '/admin/customers' },
   { label: 'Pengguna', icon: Users, path: '/admin/users' },
   { label: 'Audit Log', icon: Shield, path: '/admin/audit' },
+  { label: 'Riwayat', icon: BookOpen, path: '/admin/history' },
 ];
 
 const TECH_NAV = [

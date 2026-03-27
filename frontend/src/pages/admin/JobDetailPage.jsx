@@ -40,6 +40,7 @@ export default function JobDetailPage() {
   const [assignModal, setAssignModal] = useState(false);
   const [rescheduleModal, setRescheduleModal] = useState(false);
   const [closeConfirm, setCloseConfirm] = useState(false);
+  const [closeForm, setCloseForm] = useState({ spareParts: '', closingNote: '' });
   const [cancelConfirm, setCancelConfirm] = useState(false);
 
   // Form states
@@ -204,9 +205,10 @@ export default function JobDetailPage() {
   const handleClose = async () => {
     setSubmitting(true);
     try {
-      await adminApi.closeJob(id);
+      await adminApi.closeJob(id, closeForm);
       toast.success('Pekerjaan berhasil ditutup');
       setCloseConfirm(false);
+      setCloseForm({ spareParts: '', closingNote: '' });
       const updated = await adminApi.getJob(id);
       setJob(updated);
       const updatedHistory = await adminApi.getJobHistory(id).catch(() => []);
@@ -510,17 +512,35 @@ export default function JobDetailPage() {
       </Modal>
 
       {/* Close Confirmation Modal */}
-      <Modal isOpen={closeConfirm} onClose={() => setCloseConfirm(false)} title="Tutup Pekerjaan" size="sm">
-        <div>
-          <p className="mb-4 text-sm text-neutral-600">
-            Apakah Anda yakin ingin menutup pekerjaan ini? Tindakan ini tidak dapat dibatalkan.
+      <Modal isOpen={closeConfirm} onClose={() => { setCloseConfirm(false); setCloseForm({ spareParts: '', closingNote: '' }); }} title="Tutup Pekerjaan" size="sm">
+        <div className="space-y-4">
+          <p className="text-sm text-neutral-600">
+            Isi detail penutupan pekerjaan sebelum menutup (opsional).
           </p>
-          <div className="flex justify-end gap-3">
-            <button onClick={() => setCloseConfirm(false)} className="btn-ghost">
+          <div>
+            <label className="block text-sm font-medium text-neutral-700 mb-1">Spare Parts / Komponen</label>
+            <textarea
+              value={closeForm.spareParts}
+              onChange={e => setCloseForm(f => ({ ...f, spareParts: e.target.value }))}
+              placeholder="Contoh: Filter AC, Freon R32 1kg, Baut M8"
+              className="input-field min-h-[72px] resize-y"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-neutral-700 mb-1">Catatan Penutupan</label>
+            <textarea
+              value={closeForm.closingNote}
+              onChange={e => setCloseForm(f => ({ ...f, closingNote: e.target.value }))}
+              placeholder="Catatan tambahan saat menutup pekerjaan..."
+              className="input-field min-h-[72px] resize-y"
+            />
+          </div>
+          <div className="flex justify-end gap-3 pt-1">
+            <button onClick={() => { setCloseConfirm(false); setCloseForm({ spareParts: '', closingNote: '' }); }} className="btn-ghost">
               Batal
             </button>
             <button onClick={handleClose} disabled={submitting} className="btn-primary">
-              {submitting ? 'Menutup...' : 'Ya, Tutup'}
+              {submitting ? 'Menutup...' : 'Tutup Pekerjaan'}
             </button>
           </div>
         </div>

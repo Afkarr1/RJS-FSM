@@ -139,7 +139,7 @@ public class JobService {
     }
 
     @Transactional
-    public JobResponse closeJob(UUID jobId, UUID adminId) {
+    public JobResponse closeJob(UUID jobId, UUID adminId, com.rjs.fsm.job.dto.CloseJobRequest req) {
         Job job = getJobEntity(jobId);
 
         if (job.getStatus() != JobStatus.DONE) {
@@ -150,8 +150,19 @@ public class JobService {
         job.setStatus(JobStatus.CLOSED);
         job.setClosedAt(OffsetDateTime.now(ZoneId.of("Asia/Jakarta")));
 
+        if (req != null) {
+            if (req.getSpareParts() != null && !req.getSpareParts().isBlank()) {
+                job.setSpareParts(req.getSpareParts().trim());
+            }
+            if (req.getClosingNote() != null && !req.getClosingNote().isBlank()) {
+                job.setClosingNote(req.getClosingNote().trim());
+            }
+        }
+
         job = jobRepo.save(job);
-        recordHistory(job, oldStatus, JobStatus.CLOSED, adminId, null);
+        String note = (req != null && req.getClosingNote() != null && !req.getClosingNote().isBlank())
+                ? req.getClosingNote().trim() : null;
+        recordHistory(job, oldStatus, JobStatus.CLOSED, adminId, note);
         auditService.logAction(adminId, "CLOSE_JOB", "JOBS", job.getId(), "Job closed");
 
         return toResponse(job);

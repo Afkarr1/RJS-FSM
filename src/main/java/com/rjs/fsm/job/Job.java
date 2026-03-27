@@ -70,6 +70,12 @@ public class Job {
     @Column(name = "photo_uploaded", nullable = false)
     private boolean photoUploaded = false;
 
+    @Column(name = "spare_parts", columnDefinition = "TEXT")
+    private String spareParts;
+
+    @Column(name = "closing_note", columnDefinition = "TEXT")
+    private String closingNote;
+
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
