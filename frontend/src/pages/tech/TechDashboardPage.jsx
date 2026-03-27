@@ -69,6 +69,7 @@ export default function TechDashboardPage() {
       day: 'numeric',
       month: 'short',
       year: 'numeric',
+      timeZone: 'Asia/Jakarta',
     });
   };
 

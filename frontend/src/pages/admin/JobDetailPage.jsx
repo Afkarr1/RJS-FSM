@@ -40,6 +40,7 @@ export default function JobDetailPage() {
   const [assignModal, setAssignModal] = useState(false);
   const [rescheduleModal, setRescheduleModal] = useState(false);
   const [closeConfirm, setCloseConfirm] = useState(false);
+  const [closeForm, setCloseForm] = useState({ spareParts: '', closingNote: '' });
   const [cancelConfirm, setCancelConfirm] = useState(false);
 
   // Form states
@@ -106,6 +107,7 @@ export default function JobDetailPage() {
       day: 'numeric',
       month: 'long',
       year: 'numeric',
+      timeZone: 'Asia/Jakarta',
     });
   };
 
@@ -117,8 +119,20 @@ export default function JobDetailPage() {
       year: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
+      timeZone: 'Asia/Jakarta',
     });
   };
+
+  const statusLabel = (s) => ({
+    OPEN: 'Dibuat',
+    ASSIGNED: 'Ditugaskan',
+    IN_TRANSIT: 'Dalam Perjalanan',
+    IN_PROGRESS: 'Sedang Dikerjakan',
+    DONE: 'Selesai',
+    NEED_FOLLOWUP: 'Butuh Follow Up',
+    CLOSED: 'Ditutup',
+    CANCELLED: 'Dibatalkan',
+  }[s] || s);
 
   const handleAssign = async () => {
     if (!assignForm.technicianId) {
@@ -191,9 +205,10 @@ export default function JobDetailPage() {
   const handleClose = async () => {
     setSubmitting(true);
     try {
-      await adminApi.closeJob(id);
+      await adminApi.closeJob(id, closeForm);
       toast.success('Pekerjaan berhasil ditutup');
       setCloseConfirm(false);
+      setCloseForm({ spareParts: '', closingNote: '' });
       const updated = await adminApi.getJob(id);
       setJob(updated);
       const updatedHistory = await adminApi.getJobHistory(id).catch(() => []);
@@ -288,6 +303,20 @@ export default function JobDetailPage() {
             <InfoItem icon={User} label="Telepon" value={job.customerPhone} />
           )}
         </div>
+
+        {/* Timestamp milestones */}
+        {(job.assignedAt || job.inTransitAt || job.startedAt || job.finishedAt || job.closedAt) && (
+          <div className="mt-5 border-t border-neutral-100 pt-5">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-neutral-400">Rekam Waktu</p>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {job.assignedAt && <InfoItem icon={Clock} label="Ditugaskan" value={formatDateTime(job.assignedAt)} />}
+              {job.inTransitAt && <InfoItem icon={Clock} label="Dalam Perjalanan" value={formatDateTime(job.inTransitAt)} />}
+              {job.startedAt && <InfoItem icon={Clock} label="Mulai Dikerjakan" value={formatDateTime(job.startedAt)} />}
+              {job.finishedAt && <InfoItem icon={Clock} label="Selesai Dikerjakan" value={formatDateTime(job.finishedAt)} />}
+              {job.closedAt && <InfoItem icon={Clock} label="Ditutup" value={formatDateTime(job.closedAt)} />}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Photo gallery */}
@@ -345,21 +374,26 @@ export default function JobDetailPage() {
                 {/* Dot */}
                 <div
                   className={`absolute -left-6 top-1.5 h-[18px] w-[18px] rounded-full border-[3px] ${
-                    idx === 0
+                    idx === history.length - 1
                       ? 'border-primary-500 bg-primary-100'
                       : 'border-neutral-300 bg-white'
                   }`}
                 />
                 <div className="ml-2">
                   <p className="text-sm font-semibold text-neutral-800">
-                    {entry.action || entry.status}
+                    {statusLabel(entry.toStatus)}
                   </p>
-                  {entry.detail && (
-                    <p className="mt-0.5 text-sm text-neutral-500">{entry.detail}</p>
+                  {entry.fromStatus && (
+                    <p className="mt-0.5 text-xs text-neutral-400">
+                      dari {statusLabel(entry.fromStatus)}
+                    </p>
+                  )}
+                  {entry.note && (
+                    <p className="mt-0.5 text-sm text-neutral-500">{entry.note}</p>
                   )}
                   <p className="mt-1 text-xs text-neutral-400">
-                    {formatDateTime(entry.createdAt || entry.timestamp)}
-                    {entry.performedBy && ` \u2014 ${entry.performedBy}`}
+                    {formatDateTime(entry.changedAt)}
+                    {entry.changedByName && ` \u2014 ${entry.changedByName}`}
                   </p>
                 </div>
               </div>
@@ -478,17 +512,35 @@ export default function JobDetailPage() {
       </Modal>
 
       {/* Close Confirmation Modal */}
-      <Modal isOpen={closeConfirm} onClose={() => setCloseConfirm(false)} title="Tutup Pekerjaan" size="sm">
-        <div>
-          <p className="mb-4 text-sm text-neutral-600">
-            Apakah Anda yakin ingin menutup pekerjaan ini? Tindakan ini tidak dapat dibatalkan.
+      <Modal isOpen={closeConfirm} onClose={() => { setCloseConfirm(false); setCloseForm({ spareParts: '', closingNote: '' }); }} title="Tutup Pekerjaan" size="sm">
+        <div className="space-y-4">
+          <p className="text-sm text-neutral-600">
+            Isi detail penutupan pekerjaan sebelum menutup (opsional).
           </p>
-          <div className="flex justify-end gap-3">
-            <button onClick={() => setCloseConfirm(false)} className="btn-ghost">
+          <div>
+            <label className="block text-sm font-medium text-neutral-700 mb-1">Spare Parts / Komponen</label>
+            <textarea
+              value={closeForm.spareParts}
+              onChange={e => setCloseForm(f => ({ ...f, spareParts: e.target.value }))}
+              placeholder="Contoh: Filter AC, Freon R32 1kg, Baut M8"
+              className="input-field min-h-[72px] resize-y"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-neutral-700 mb-1">Catatan Penutupan</label>
+            <textarea
+              value={closeForm.closingNote}
+              onChange={e => setCloseForm(f => ({ ...f, closingNote: e.target.value }))}
+              placeholder="Catatan tambahan saat menutup pekerjaan..."
+              className="input-field min-h-[72px] resize-y"
+            />
+          </div>
+          <div className="flex justify-end gap-3 pt-1">
+            <button onClick={() => { setCloseConfirm(false); setCloseForm({ spareParts: '', closingNote: '' }); }} className="btn-ghost">
               Batal
             </button>
             <button onClick={handleClose} disabled={submitting} className="btn-primary">
-              {submitting ? 'Menutup...' : 'Ya, Tutup'}
+              {submitting ? 'Menutup...' : 'Tutup Pekerjaan'}
             </button>
           </div>
         </div>

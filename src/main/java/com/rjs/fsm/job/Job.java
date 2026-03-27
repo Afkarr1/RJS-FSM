@@ -6,6 +6,7 @@ import lombok.Setter;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.util.UUID;
 
 @Entity
@@ -51,6 +52,9 @@ public class Job {
     @Column(name = "assigned_at")
     private OffsetDateTime assignedAt;
 
+    @Column(name = "in_transit_at")
+    private OffsetDateTime inTransitAt;
+
     @Column(name = "started_at")
     private OffsetDateTime startedAt;
 
@@ -66,6 +70,12 @@ public class Job {
     @Column(name = "photo_uploaded", nullable = false)
     private boolean photoUploaded = false;
 
+    @Column(name = "spare_parts", columnDefinition = "TEXT")
+    private String spareParts;
+
+    @Column(name = "closing_note", columnDefinition = "TEXT")
+    private String closingNote;
+
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
@@ -75,13 +85,13 @@ public class Job {
     @PrePersist
     void onCreate() {
         if (id == null) id = UUID.randomUUID();
-        OffsetDateTime now = OffsetDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now(ZoneId.of("Asia/Jakarta"));
         if (createdAt == null) createdAt = now;
         if (updatedAt == null) updatedAt = now;
     }
 
     @PreUpdate
     void onUpdate() {
-        updatedAt = OffsetDateTime.now();
+        updatedAt = OffsetDateTime.now(ZoneId.of("Asia/Jakarta"));
     }
 }

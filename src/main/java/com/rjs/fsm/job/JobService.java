@@ -66,7 +66,7 @@ public class JobService {
             User tech = validateTechnician(req.getAssignToId(), tenantId);
             job.setAssignedToId(tech.getId());
             job.setStatus(JobStatus.ASSIGNED);
-            job.setAssignedAt(OffsetDateTime.now());
+            job.setAssignedAt(OffsetDateTime.now(ZoneId.of("Asia/Jakarta")));
         }
 
         job = jobRepo.save(job);
@@ -93,7 +93,7 @@ public class JobService {
         JobStatus oldStatus = job.getStatus();
         job.setAssignedToId(tech.getId());
         job.setStatus(JobStatus.ASSIGNED);
-        job.setAssignedAt(OffsetDateTime.now());
+        job.setAssignedAt(OffsetDateTime.now(ZoneId.of("Asia/Jakarta")));
         if (req.getScheduledDate() != null) {
             job.setScheduledDate(req.getScheduledDate());
         }
@@ -120,7 +120,7 @@ public class JobService {
         JobStatus oldStatus = job.getStatus();
         job.setScheduledDate(req.getScheduledDate());
         job.setStatus(JobStatus.ASSIGNED);
-        job.setAssignedAt(OffsetDateTime.now());
+        job.setAssignedAt(OffsetDateTime.now(ZoneId.of("Asia/Jakarta")));
         job.setStartedAt(null);
         job.setFinishedAt(null);
         job.setPhotoUploaded(false);
@@ -139,7 +139,7 @@ public class JobService {
     }
 
     @Transactional
-    public JobResponse closeJob(UUID jobId, UUID adminId) {
+    public JobResponse closeJob(UUID jobId, UUID adminId, com.rjs.fsm.job.dto.CloseJobRequest req) {
         Job job = getJobEntity(jobId);
 
         if (job.getStatus() != JobStatus.DONE) {
@@ -148,10 +148,21 @@ public class JobService {
 
         JobStatus oldStatus = job.getStatus();
         job.setStatus(JobStatus.CLOSED);
-        job.setClosedAt(OffsetDateTime.now());
+        job.setClosedAt(OffsetDateTime.now(ZoneId.of("Asia/Jakarta")));
+
+        if (req != null) {
+            if (req.getSpareParts() != null && !req.getSpareParts().isBlank()) {
+                job.setSpareParts(req.getSpareParts().trim());
+            }
+            if (req.getClosingNote() != null && !req.getClosingNote().isBlank()) {
+                job.setClosingNote(req.getClosingNote().trim());
+            }
+        }
 
         job = jobRepo.save(job);
-        recordHistory(job, oldStatus, JobStatus.CLOSED, adminId, null);
+        String note = (req != null && req.getClosingNote() != null && !req.getClosingNote().isBlank())
+                ? req.getClosingNote().trim() : null;
+        recordHistory(job, oldStatus, JobStatus.CLOSED, adminId, note);
         auditService.logAction(adminId, "CLOSE_JOB", "JOBS", job.getId(), "Job closed");
 
         return toResponse(job);
@@ -219,6 +230,7 @@ public class JobService {
 
         JobStatus oldStatus = job.getStatus();
         job.setStatus(JobStatus.IN_TRANSIT);
+        job.setInTransitAt(OffsetDateTime.now(ZoneId.of("Asia/Jakarta")));
 
         job = jobRepo.save(job);
         recordHistory(job, oldStatus, JobStatus.IN_TRANSIT, technicianId, null);
@@ -238,7 +250,7 @@ public class JobService {
 
         JobStatus oldStatus = job.getStatus();
         job.setStatus(JobStatus.IN_PROGRESS);
-        job.setStartedAt(OffsetDateTime.now());
+        job.setStartedAt(OffsetDateTime.now(ZoneId.of("Asia/Jakarta")));
 
         job = jobRepo.save(job);
         recordHistory(job, oldStatus, JobStatus.IN_PROGRESS, technicianId, null);
@@ -264,7 +276,7 @@ public class JobService {
 
         JobStatus oldStatus = job.getStatus();
         job.setStatus(JobStatus.DONE);
-        job.setFinishedAt(OffsetDateTime.now());
+        job.setFinishedAt(OffsetDateTime.now(ZoneId.of("Asia/Jakarta")));
 
         job = jobRepo.save(job);
         recordHistory(job, oldStatus, JobStatus.DONE, technicianId, null);

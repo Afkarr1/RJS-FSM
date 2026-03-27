@@ -16,6 +16,7 @@ import {
   FileText,
   ZoomIn,
   Truck,
+  Clock,
 } from 'lucide-react';
 import * as faceapi from 'face-api.js';
 import { techApi } from '../../api/client';
@@ -60,6 +61,9 @@ export default function TechJobDetailPage() {
   // Lightbox
   const [lightboxUrl, setLightboxUrl] = useState(null);
 
+  // Job history
+  const [history, setHistory] = useState([]);
+
   // Load face detection model on mount
   useEffect(() => {
     faceapi.nets.tinyFaceDetector.loadFromUri('/models')
@@ -87,14 +91,23 @@ export default function TechJobDetailPage() {
     }
   }, [id]);
 
+  const fetchHistory = useCallback(async () => {
+    try {
+      const data = await techApi.getJobHistory(id);
+      setHistory(Array.isArray(data) ? data : []);
+    } catch {
+      // history may not be available yet
+    }
+  }, [id]);
+
   useEffect(() => {
     async function load() {
       setLoading(true);
-      await Promise.all([fetchJob(), fetchPhotos()]);
+      await Promise.all([fetchJob(), fetchPhotos(), fetchHistory()]);
       setLoading(false);
     }
     load();
-  }, [fetchJob, fetchPhotos]);
+  }, [fetchJob, fetchPhotos, fetchHistory]);
 
   // Generate previews for selected files
   useEffect(() => {
@@ -116,10 +129,41 @@ export default function TechJobDetailPage() {
     }
   };
 
+  const isAllowedFile = (f) => {
+    const type = f.type.toLowerCase();
+    const name = f.name.toLowerCase();
+    return (
+      type.startsWith('image/') ||
+      type === 'application/pdf' ||
+      name.endsWith('.heic') ||
+      name.endsWith('.heif')
+    );
+  };
+
+  const needsFaceCheck = (f) => {
+    const type = f.type.toLowerCase();
+    const name = f.name.toLowerCase();
+    return (
+      type.startsWith('image/') &&
+      type !== 'image/heic' &&
+      type !== 'image/heif' &&
+      !name.endsWith('.heic') &&
+      !name.endsWith('.heif')
+    );
+  };
+
   const handleFilesSelected = async (files) => {
-    const validFiles = Array.from(files).filter((f) => f.type.startsWith('image/'));
+    const validFiles = Array.from(files).filter(isAllowedFile);
     if (validFiles.length === 0) {
-      toast.error('Pilih file gambar (JPG, PNG, dll).');
+      toast.error('Pilih file gambar (JPG, PNG, HEIC) atau PDF.');
+      return;
+    }
+
+    const passthrough = validFiles.filter((f) => !needsFaceCheck(f));
+    const toCheck = validFiles.filter(needsFaceCheck);
+
+    if (toCheck.length === 0) {
+      setSelectedFiles((prev) => [...prev, ...passthrough]);
       return;
     }
 
@@ -129,10 +173,10 @@ export default function TechJobDetailPage() {
     }
 
     setDetecting(true);
-    const accepted = [];
+    const accepted = [...passthrough];
     const rejected = [];
 
-    for (const file of validFiles) {
+    for (const file of toCheck) {
       const hasFace = await hasFaceInImage(file);
       if (hasFace) {
         accepted.push(file);
@@ -193,7 +237,7 @@ export default function TechJobDetailPage() {
         await techApi.finishJob(id);
         toast.success('Tugas selesai!');
       }
-      await fetchJob();
+      await Promise.all([fetchJob(), fetchHistory()]);
     } catch (err) {
       const msg = err?.message || 'Gagal melakukan aksi.';
       toast.error(msg);
@@ -210,7 +254,7 @@ export default function TechJobDetailPage() {
       toast.success('Follow up berhasil ditandai.');
       setFollowUpModal(false);
       setFollowUpReason('');
-      await fetchJob();
+      await Promise.all([fetchJob(), fetchHistory()]);
     } catch (err) {
       const msg = err?.message || 'Gagal melakukan follow up.';
       toast.error(msg);
@@ -226,8 +270,32 @@ export default function TechJobDetailPage() {
       day: 'numeric',
       month: 'long',
       year: 'numeric',
+      timeZone: 'Asia/Jakarta',
     });
   };
+
+  const formatDateTime = (dateStr) => {
+    if (!dateStr) return '-';
+    return new Date(dateStr).toLocaleString('id-ID', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: 'Asia/Jakarta',
+    });
+  };
+
+  const statusLabel = (s) => ({
+    OPEN: 'Dibuat',
+    ASSIGNED: 'Ditugaskan',
+    IN_TRANSIT: 'Dalam Perjalanan',
+    IN_PROGRESS: 'Sedang Dikerjakan',
+    DONE: 'Selesai',
+    NEED_FOLLOWUP: 'Butuh Follow Up',
+    CLOSED: 'Ditutup',
+    CANCELLED: 'Dibatalkan',
+  }[s] || s);
 
   const getPhotoUrl = (photo) => {
     if (photo.downloadUrl) {
@@ -469,13 +537,13 @@ export default function TechJobDetailPage() {
                   <p className="text-sm font-medium text-neutral-600">
                     Seret foto ke sini atau <span className="text-primary-600">klik untuk memilih</span>
                   </p>
-                  <p className="mt-1 text-xs text-neutral-400">JPG, PNG, WEBP — wajah teknisi harus terdeteksi</p>
+                  <p className="mt-1 text-xs text-neutral-400">JPG, PNG, HEIC, PDF — foto wajah teknisi wajib untuk gambar</p>
                 </>
               )}
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*"
+                accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf,.heic,.heif,.pdf"
                 multiple
                 onChange={(e) => handleFilesSelected(e.target.files)}
                 className="hidden"
@@ -492,27 +560,48 @@ export default function TechJobDetailPage() {
                   className="mt-4"
                 >
                   <div className="flex flex-wrap gap-3">
-                    {previews.map((url, i) => (
-                      <motion.div
-                        key={url}
-                        initial={{ opacity: 0, scale: 0.8 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.8 }}
-                        className="group relative h-20 w-20 overflow-hidden rounded-xl ring-1 ring-neutral-200"
-                      >
-                        <img
-                          src={url}
-                          alt={`Preview ${i + 1}`}
-                          className="h-full w-full object-cover"
-                        />
-                        <button
-                          onClick={(e) => { e.stopPropagation(); removeFile(i); }}
-                          className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-white opacity-0 shadow-sm transition-opacity group-hover:opacity-100"
+                    {previews.map((url, i) => {
+                      const file = selectedFiles[i];
+                      const isPdf = file?.type === 'application/pdf';
+                      const isHeic = file?.type === 'image/heic' || file?.type === 'image/heif'
+                        || file?.name?.toLowerCase().endsWith('.heic')
+                        || file?.name?.toLowerCase().endsWith('.heif');
+                      return (
+                        <motion.div
+                          key={url}
+                          initial={{ opacity: 0, scale: 0.8 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0, scale: 0.8 }}
+                          className="group relative h-20 w-20 overflow-hidden rounded-xl ring-1 ring-neutral-200"
                         >
-                          <X size={12} />
-                        </button>
-                      </motion.div>
-                    ))}
+                          {isPdf ? (
+                            <div className="flex h-full w-full flex-col items-center justify-center bg-red-50">
+                              <FileText size={22} className="text-red-400" />
+                              <span className="mt-1 w-full truncate px-1 text-center text-[9px] text-red-400">
+                                {file.name}
+                              </span>
+                            </div>
+                          ) : isHeic ? (
+                            <div className="flex h-full w-full flex-col items-center justify-center bg-neutral-100">
+                              <ImageIcon size={22} className="text-neutral-400" />
+                              <span className="mt-1 text-[9px] text-neutral-400">HEIC</span>
+                            </div>
+                          ) : (
+                            <img
+                              src={url}
+                              alt={`Preview ${i + 1}`}
+                              className="h-full w-full object-cover"
+                            />
+                          )}
+                          <button
+                            onClick={(e) => { e.stopPropagation(); removeFile(i); }}
+                            className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-white opacity-0 shadow-sm transition-opacity group-hover:opacity-100"
+                          >
+                            <X size={12} />
+                          </button>
+                        </motion.div>
+                      );
+                    })}
                   </div>
 
                   <motion.button
@@ -571,6 +660,47 @@ export default function TechJobDetailPage() {
                     />
                   </div>
                 </motion.div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+
+        {/* Job History Timeline */}
+        {history.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.4 }}
+            className="mb-6 rounded-2xl bg-white p-6 shadow-card ring-1 ring-neutral-100"
+          >
+            <h2 className="mb-4 text-base font-semibold text-neutral-800 flex items-center gap-2">
+              <Clock size={18} className="text-primary-600" />
+              Riwayat Pekerjaan
+            </h2>
+            <div className="relative pl-6">
+              <div className="absolute left-[9px] top-2 bottom-2 w-0.5 bg-neutral-200" />
+              {history.map((entry, idx) => (
+                <div key={entry.id || idx} className="relative mb-5 last:mb-0">
+                  <div
+                    className={`absolute -left-6 top-1.5 h-[18px] w-[18px] rounded-full border-[3px] ${
+                      idx === history.length - 1
+                        ? 'border-primary-500 bg-primary-100'
+                        : 'border-neutral-300 bg-white'
+                    }`}
+                  />
+                  <div className="ml-2">
+                    <p className="text-sm font-semibold text-neutral-800">
+                      {statusLabel(entry.toStatus)}
+                    </p>
+                    {entry.note && (
+                      <p className="mt-0.5 text-sm text-neutral-500">{entry.note}</p>
+                    )}
+                    <p className="mt-1 text-xs text-neutral-400">
+                      {formatDateTime(entry.changedAt)}
+                      {entry.changedByName && ` \u2014 ${entry.changedByName}`}
+                    </p>
+                  </div>
+                </div>
               ))}
             </div>
           </motion.div>

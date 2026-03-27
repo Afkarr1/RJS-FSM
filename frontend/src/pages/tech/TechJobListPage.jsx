@@ -67,6 +67,7 @@ export default function TechJobListPage() {
       day: 'numeric',
       month: 'short',
       year: 'numeric',
+      timeZone: 'Asia/Jakarta',
     });
   };
 

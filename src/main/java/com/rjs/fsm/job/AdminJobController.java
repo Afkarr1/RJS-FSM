@@ -50,8 +50,9 @@ public class AdminJobController {
     }
 
     @PostMapping("/{id}/close")
-    public JobResponse closeJob(@PathVariable UUID id) {
-        return jobService.closeJob(id, currentUser.getCurrentUserId());
+    public JobResponse closeJob(@PathVariable UUID id,
+            @Valid @RequestBody(required = false) com.rjs.fsm.job.dto.CloseJobRequest req) {
+        return jobService.closeJob(id, currentUser.getCurrentUserId(), req);
     }
 
     @PostMapping("/{id}/cancel")

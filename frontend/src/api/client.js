@@ -83,13 +83,18 @@ export const adminApi = {
   createJob: (data) => api.post('/admin/jobs', data),
   assignJob: (id, data) => api.post(`/admin/jobs/${id}/assign`, data),
   rescheduleJob: (id, data) => api.post(`/admin/jobs/${id}/reschedule`, data),
-  closeJob: (id) => api.post(`/admin/jobs/${id}/close`),
+  closeJob: (id, data) => api.post(`/admin/jobs/${id}/close`, data || {}),
   cancelJob: (id) => api.post(`/admin/jobs/${id}/cancel`),
   getJobHistory: (id) => api.get(`/admin/jobs/${id}/history`),
   getJobPhotos: (id) => api.get(`/admin/jobs/${id}/photos`),
 
   getAuditLogs: () => api.get('/admin/audit/logs'),
   getLoginAudit: () => api.get('/admin/audit/logins'),
+
+  getCustomers: (search) => api.get(`/admin/customers${search ? `?search=${encodeURIComponent(search)}` : ''}`),
+  createCustomer: (data) => api.post('/admin/customers', data),
+  updateCustomer: (id, data) => api.put(`/admin/customers/${id}`, data),
+  deleteCustomer: (id) => api.delete(`/admin/customers/${id}`),
 };
 
 // Tech APIs
@@ -102,6 +107,7 @@ export const techApi = {
   followUp: (id, reason) => api.post(`/tech/jobs/${id}/followup`, { reason }),
   uploadPhoto: (jobId, formData) => api.upload(`/tech/jobs/${jobId}/photos`, formData),
   getPhotos: (jobId) => api.get(`/tech/jobs/${jobId}/photos`),
+  getJobHistory: (id) => api.get(`/tech/jobs/${id}/history`),
 };
 
 // Public APIs
