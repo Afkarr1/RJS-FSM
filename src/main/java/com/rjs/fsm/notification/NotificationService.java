@@ -30,7 +30,7 @@ public class NotificationService {
     public void sendReviewLinkToCustomer(Job job) {
         try {
             String token = reviewService.createReviewLink(job);
-            String reviewUrl = baseUrl + "/api/public/reviews/" + token;
+            String reviewUrl = baseUrl + "/public/reviews/" + token;
 
             String message = String.format(
                     "Halo %s,\n\n" +
