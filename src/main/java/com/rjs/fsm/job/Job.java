@@ -76,6 +76,19 @@ public class Job {
     @Column(name = "closing_note", columnDefinition = "TEXT")
     private String closingNote;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "job_type", length = 30, nullable = false)
+    private JobType jobType = JobType.FIELD_SERVICE;
+
+    @Column(name = "machine_serial_no", length = 100)
+    private String machineSerialNo;
+
+    @Column(name = "estimate_text", length = 500)
+    private String estimateText;
+
+    @Column(name = "pending_at")
+    private OffsetDateTime pendingAt;
+
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 

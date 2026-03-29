@@ -17,6 +17,10 @@ import {
   ZoomIn,
   Truck,
   Clock,
+  Wrench,
+  PauseCircle,
+  RotateCcw,
+  ClipboardList,
 } from 'lucide-react';
 import * as faceapi from 'face-api.js';
 import { techApi } from '../../api/client';
@@ -57,6 +61,12 @@ export default function TechJobDetailPage() {
   const [followUpModal, setFollowUpModal] = useState(false);
   const [followUpReason, setFollowUpReason] = useState('');
   const [followUpLoading, setFollowUpLoading] = useState(false);
+
+  // BACK_OFFICE: pending modal + progress note
+  const [pendingModal, setPendingModal] = useState(false);
+  const [pendingReason, setPendingReason] = useState('');
+  const [pendingLoading, setPendingLoading] = useState(false);
+  const [progressNote, setProgressNote] = useState('');
 
   // Lightbox
   const [lightboxUrl, setLightboxUrl] = useState(null);
@@ -224,7 +234,7 @@ export default function TechJobDetailPage() {
     }
   };
 
-  const handleAction = async (action) => {
+  const handleAction = async (action, note = null) => {
     setActionLoading(action);
     try {
       if (action === 'transit') {
@@ -236,6 +246,15 @@ export default function TechJobDetailPage() {
       } else if (action === 'finish') {
         await techApi.finishJob(id);
         toast.success('Tugas selesai!');
+      } else if (action === 'pending') {
+        await techApi.markPending(id, note || 'Menunggu sparepart/keputusan');
+        toast.success('Status: Menunggu');
+      } else if (action === 'resume') {
+        await techApi.resumeJob(id);
+        toast.success('Pengerjaan dilanjutkan!');
+      } else if (action === 'progress') {
+        await techApi.addProgress(id, note);
+        toast.success('Catatan progress ditambahkan');
       }
       await Promise.all([fetchJob(), fetchHistory()]);
     } catch (err) {
@@ -291,6 +310,7 @@ export default function TechJobDetailPage() {
     ASSIGNED: 'Ditugaskan',
     IN_TRANSIT: 'Dalam Perjalanan',
     IN_PROGRESS: 'Sedang Dikerjakan',
+    PENDING: 'Menunggu Sparepart',
     DONE: 'Selesai',
     NEED_FOLLOWUP: 'Butuh Follow Up',
     CLOSED: 'Ditutup',
@@ -359,25 +379,80 @@ export default function TechJobDetailPage() {
             <p className="mb-5 text-sm leading-relaxed text-neutral-600">{job.description}</p>
           )}
 
+          {job.jobType === 'BACK_OFFICE' && (
+            <div className="mb-3 flex items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-orange-100 px-3 py-1 text-xs font-semibold text-orange-700">
+                <Wrench size={12} /> Workshop
+              </span>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 gap-3 border-t border-neutral-100 pt-5 sm:grid-cols-2">
-            <div className="flex items-center gap-3 text-sm text-neutral-600">
-              <div className="rounded-lg bg-primary-50 p-2">
-                <User size={16} className="text-primary-600" />
-              </div>
-              <div>
-                <p className="text-xs text-neutral-400">Pelanggan</p>
-                <p className="font-medium">{job.customerName || '-'}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 text-sm text-neutral-600">
-              <div className="rounded-lg bg-primary-50 p-2">
-                <MapPin size={16} className="text-primary-600" />
-              </div>
-              <div>
-                <p className="text-xs text-neutral-400">Alamat</p>
-                <p className="font-medium">{job.address || '-'}</p>
-              </div>
-            </div>
+            {job.jobType === 'BACK_OFFICE' ? (
+              <>
+                <div className="flex items-center gap-3 text-sm text-neutral-600">
+                  <div className="rounded-lg bg-orange-50 p-2">
+                    <Wrench size={16} className="text-orange-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-neutral-400">Nama Mesin</p>
+                    <p className="font-medium">{job.customerName || '-'}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 text-sm text-neutral-600">
+                  <div className="rounded-lg bg-orange-50 p-2">
+                    <FileText size={16} className="text-orange-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-neutral-400">Tipe Mesin</p>
+                    <p className="font-medium">{job.address || '-'}</p>
+                  </div>
+                </div>
+                {job.machineSerialNo && (
+                  <div className="flex items-center gap-3 text-sm text-neutral-600">
+                    <div className="rounded-lg bg-orange-50 p-2">
+                      <ClipboardList size={16} className="text-orange-600" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-neutral-400">No. Seri</p>
+                      <p className="font-medium font-mono">{job.machineSerialNo}</p>
+                    </div>
+                  </div>
+                )}
+                {job.estimateText && (
+                  <div className="flex items-center gap-3 text-sm text-neutral-600">
+                    <div className="rounded-lg bg-orange-50 p-2">
+                      <FileText size={16} className="text-orange-600" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-neutral-400">Estimasi</p>
+                      <p className="font-medium">{job.estimateText}</p>
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                <div className="flex items-center gap-3 text-sm text-neutral-600">
+                  <div className="rounded-lg bg-primary-50 p-2">
+                    <User size={16} className="text-primary-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-neutral-400">Pelanggan</p>
+                    <p className="font-medium">{job.customerName || '-'}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 text-sm text-neutral-600">
+                  <div className="rounded-lg bg-primary-50 p-2">
+                    <MapPin size={16} className="text-primary-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-neutral-400">Alamat</p>
+                    <p className="font-medium">{job.address || '-'}</p>
+                  </div>
+                </div>
+              </>
+            )}
             <div className="flex items-center gap-3 text-sm text-neutral-600">
               <div className="rounded-lg bg-primary-50 p-2">
                 <Calendar size={16} className="text-primary-600" />
@@ -406,92 +481,216 @@ export default function TechJobDetailPage() {
           transition={{ duration: 0.4, delay: 0.2 }}
           className="mb-6"
         >
-          {/* ASSIGNED: Button "Dalam Perjalanan" */}
-          {job.status === 'ASSIGNED' && (
-            <motion.button
-              whileHover={{ scale: 1.02, y: -1 }}
-              whileTap={{ scale: 0.97 }}
-              onClick={() => handleAction('transit')}
-              disabled={actionLoading === 'transit'}
-              className="btn-primary flex w-full items-center justify-center gap-2 py-3 text-base sm:w-auto"
-            >
-              {actionLoading === 'transit' ? (
-                <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-              ) : (
-                <Truck size={18} />
+          {job.jobType === 'BACK_OFFICE' ? (
+            /* ── BACK_OFFICE flow ── */
+            <>
+              {/* ASSIGNED → Mulai langsung (skip transit) */}
+              {job.status === 'ASSIGNED' && (
+                <motion.button
+                  whileHover={{ scale: 1.02, y: -1 }}
+                  whileTap={{ scale: 0.97 }}
+                  onClick={() => handleAction('start')}
+                  disabled={actionLoading === 'start'}
+                  className="btn-primary flex w-full items-center justify-center gap-2 py-3 text-base sm:w-auto"
+                >
+                  {actionLoading === 'start' ? (
+                    <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                  ) : (
+                    <Play size={18} />
+                  )}
+                  Mulai Kerjakan
+                </motion.button>
               )}
-              Dalam Perjalanan
-            </motion.button>
-          )}
 
-          {/* IN_TRANSIT: Button "Mulai Kerjakan" */}
-          {job.status === 'IN_TRANSIT' && (
-            <motion.button
-              whileHover={{ scale: 1.02, y: -1 }}
-              whileTap={{ scale: 0.97 }}
-              onClick={() => handleAction('start')}
-              disabled={actionLoading === 'start'}
-              className="btn-primary flex w-full items-center justify-center gap-2 py-3 text-base sm:w-auto"
-            >
-              {actionLoading === 'start' ? (
-                <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-              ) : (
-                <Play size={18} />
+              {/* IN_PROGRESS → progress note + Butuh Sparepart + Selesai */}
+              {job.status === 'IN_PROGRESS' && (
+                <div className="space-y-3">
+                  {/* Progress note form */}
+                  <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4">
+                    <label className="mb-2 block text-sm font-medium text-neutral-700">
+                      Catatan Progress (opsional)
+                    </label>
+                    <textarea
+                      value={progressNote}
+                      onChange={(e) => setProgressNote(e.target.value)}
+                      placeholder="Contoh: Sudah dibersihkan, menunggu pengeringan..."
+                      rows={3}
+                      maxLength={500}
+                      className="input-field mb-2 min-h-[72px] resize-y text-sm"
+                    />
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-neutral-400">{progressNote.length}/500</span>
+                      <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.97 }}
+                        onClick={() => {
+                          if (progressNote.trim()) {
+                            handleAction('progress', progressNote.trim()).then(() => setProgressNote(''));
+                          }
+                        }}
+                        disabled={!progressNote.trim() || actionLoading === 'progress'}
+                        className="flex items-center gap-2 rounded-xl bg-neutral-700 px-4 py-2 text-sm font-semibold text-white transition-all hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        {actionLoading === 'progress' ? (
+                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                        ) : (
+                          <ClipboardList size={15} />
+                        )}
+                        Tambah Progress
+                      </motion.button>
+                    </div>
+                  </div>
+
+                  {/* Action buttons */}
+                  <div className="flex flex-wrap gap-3">
+                    <motion.button
+                      whileHover={{ scale: 1.02, y: -1 }}
+                      whileTap={{ scale: 0.97 }}
+                      onClick={() => handleAction('finish')}
+                      disabled={actionLoading === 'finish'}
+                      className="btn-primary flex items-center gap-2 py-3 text-base"
+                    >
+                      {actionLoading === 'finish' ? (
+                        <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                      ) : (
+                        <CheckCircle2 size={18} />
+                      )}
+                      Selesai
+                    </motion.button>
+
+                    <motion.button
+                      whileHover={{ scale: 1.02, y: -1 }}
+                      whileTap={{ scale: 0.97 }}
+                      onClick={() => setPendingModal(true)}
+                      className="flex items-center gap-2 rounded-xl border-2 border-amber-200 bg-amber-50 px-6 py-3 font-semibold text-amber-700 transition-all duration-200 hover:border-amber-300 hover:bg-amber-100 active:scale-[0.97]"
+                    >
+                      <PauseCircle size={18} />
+                      Butuh Sparepart
+                    </motion.button>
+                  </div>
+                </div>
               )}
-              Mulai Kerjakan
-            </motion.button>
-          )}
 
-          {/* IN_PROGRESS: Selesai + Follow Up */}
-          {job.status === 'IN_PROGRESS' && (
-            <div className="flex flex-wrap gap-3">
-              <motion.button
-                whileHover={{ scale: 1.02, y: -1 }}
-                whileTap={{ scale: 0.97 }}
-                onClick={() => handleAction('finish')}
-                disabled={actionLoading === 'finish' || finishDisabled}
-                className="btn-primary relative flex items-center gap-2 py-3 text-base"
-                title={finishDisabled ? 'Upload foto terlebih dahulu sebelum menyelesaikan tugas' : ''}
-              >
-                {actionLoading === 'finish' ? (
-                  <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                ) : (
-                  <CheckCircle2 size={18} />
-                )}
-                Selesai
-              </motion.button>
+              {/* PENDING → Lanjutkan */}
+              {job.status === 'PENDING' && (
+                <div className="space-y-3">
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+                    <div className="flex items-center gap-2 text-amber-700">
+                      <PauseCircle size={18} />
+                      <p className="text-sm font-semibold">Menunggu Sparepart / Keputusan</p>
+                    </div>
+                    <p className="mt-1 text-xs text-amber-600">
+                      Tekan tombol di bawah saat pengerjaan bisa dilanjutkan.
+                    </p>
+                  </div>
+                  <motion.button
+                    whileHover={{ scale: 1.02, y: -1 }}
+                    whileTap={{ scale: 0.97 }}
+                    onClick={() => handleAction('resume')}
+                    disabled={actionLoading === 'resume'}
+                    className="btn-primary flex w-full items-center justify-center gap-2 py-3 text-base sm:w-auto"
+                  >
+                    {actionLoading === 'resume' ? (
+                      <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                    ) : (
+                      <RotateCcw size={18} />
+                    )}
+                    Lanjutkan Pengerjaan
+                  </motion.button>
+                </div>
+              )}
+            </>
+          ) : (
+            /* ── FIELD_SERVICE flow ── */
+            <>
+              {/* ASSIGNED: Button "Dalam Perjalanan" */}
+              {job.status === 'ASSIGNED' && (
+                <motion.button
+                  whileHover={{ scale: 1.02, y: -1 }}
+                  whileTap={{ scale: 0.97 }}
+                  onClick={() => handleAction('transit')}
+                  disabled={actionLoading === 'transit'}
+                  className="btn-primary flex w-full items-center justify-center gap-2 py-3 text-base sm:w-auto"
+                >
+                  {actionLoading === 'transit' ? (
+                    <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                  ) : (
+                    <Truck size={18} />
+                  )}
+                  Dalam Perjalanan
+                </motion.button>
+              )}
 
-              <motion.button
-                whileHover={{ scale: 1.02, y: -1 }}
-                whileTap={{ scale: 0.97 }}
-                onClick={() => fileInputRef.current?.click()}
-                className="btn-secondary flex items-center gap-2 py-3"
-              >
-                <Camera size={18} />
-                Upload Foto
-              </motion.button>
+              {/* IN_TRANSIT: Button "Mulai Kerjakan" */}
+              {job.status === 'IN_TRANSIT' && (
+                <motion.button
+                  whileHover={{ scale: 1.02, y: -1 }}
+                  whileTap={{ scale: 0.97 }}
+                  onClick={() => handleAction('start')}
+                  disabled={actionLoading === 'start'}
+                  className="btn-primary flex w-full items-center justify-center gap-2 py-3 text-base sm:w-auto"
+                >
+                  {actionLoading === 'start' ? (
+                    <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                  ) : (
+                    <Play size={18} />
+                  )}
+                  Mulai Kerjakan
+                </motion.button>
+              )}
 
-              <motion.button
-                whileHover={{ scale: 1.02, y: -1 }}
-                whileTap={{ scale: 0.97 }}
-                onClick={() => setFollowUpModal(true)}
-                className="flex items-center gap-2 rounded-xl border-2 border-orange-200 bg-orange-50 px-6 py-3 font-semibold text-orange-700 transition-all duration-200 hover:border-orange-300 hover:bg-orange-100 active:scale-[0.97]"
-              >
-                <AlertTriangle size={18} />
-                Butuh Follow Up
-              </motion.button>
-            </div>
-          )}
+              {/* IN_PROGRESS: Selesai + Upload + Follow Up */}
+              {job.status === 'IN_PROGRESS' && (
+                <div className="flex flex-wrap gap-3">
+                  <motion.button
+                    whileHover={{ scale: 1.02, y: -1 }}
+                    whileTap={{ scale: 0.97 }}
+                    onClick={() => handleAction('finish')}
+                    disabled={actionLoading === 'finish' || finishDisabled}
+                    className="btn-primary relative flex items-center gap-2 py-3 text-base"
+                    title={finishDisabled ? 'Upload foto terlebih dahulu sebelum menyelesaikan tugas' : ''}
+                  >
+                    {actionLoading === 'finish' ? (
+                      <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                    ) : (
+                      <CheckCircle2 size={18} />
+                    )}
+                    Selesai
+                  </motion.button>
 
-          {finishDisabled && job.status === 'IN_PROGRESS' && (
-            <motion.p
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="mt-2 flex items-center gap-1.5 text-xs font-medium text-amber-600"
-            >
-              <AlertTriangle size={14} />
-              Upload foto terlebih dahulu sebelum menyelesaikan tugas.
-            </motion.p>
+                  <motion.button
+                    whileHover={{ scale: 1.02, y: -1 }}
+                    whileTap={{ scale: 0.97 }}
+                    onClick={() => fileInputRef.current?.click()}
+                    className="btn-secondary flex items-center gap-2 py-3"
+                  >
+                    <Camera size={18} />
+                    Upload Foto
+                  </motion.button>
+
+                  <motion.button
+                    whileHover={{ scale: 1.02, y: -1 }}
+                    whileTap={{ scale: 0.97 }}
+                    onClick={() => setFollowUpModal(true)}
+                    className="flex items-center gap-2 rounded-xl border-2 border-orange-200 bg-orange-50 px-6 py-3 font-semibold text-orange-700 transition-all duration-200 hover:border-orange-300 hover:bg-orange-100 active:scale-[0.97]"
+                  >
+                    <AlertTriangle size={18} />
+                    Butuh Follow Up
+                  </motion.button>
+                </div>
+              )}
+
+              {finishDisabled && job.status === 'IN_PROGRESS' && (
+                <motion.p
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="mt-2 flex items-center gap-1.5 text-xs font-medium text-amber-600"
+                >
+                  <AlertTriangle size={14} />
+                  Upload foto terlebih dahulu sebelum menyelesaikan tugas.
+                </motion.p>
+              )}
+            </>
           )}
         </motion.div>
 
@@ -705,6 +904,78 @@ export default function TechJobDetailPage() {
             </div>
           </motion.div>
         )}
+
+        {/* Pending Modal (BACK_OFFICE) */}
+        <AnimatePresence>
+          {pendingModal && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setPendingModal(false)}
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
+            >
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                onClick={(e) => e.stopPropagation()}
+                className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"
+              >
+                <div className="mb-4 flex items-center gap-3">
+                  <div className="rounded-xl bg-amber-100 p-2">
+                    <PauseCircle size={20} className="text-amber-600" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-neutral-800">Butuh Sparepart</h3>
+                </div>
+                <p className="mb-4 text-sm text-neutral-500">
+                  Jelaskan apa yang sedang ditunggu (sparepart, keputusan, dll).
+                </p>
+                <textarea
+                  value={pendingReason}
+                  onChange={(e) => setPendingReason(e.target.value)}
+                  placeholder="Contoh: Menunggu sparepart kapasitor 25µF..."
+                  rows={4}
+                  maxLength={500}
+                  className="input-field mb-1 min-h-[100px] resize-y"
+                  autoFocus
+                />
+                <p className="mb-4 text-right text-xs text-neutral-400">{pendingReason.length}/500</p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => { setPendingModal(false); setPendingReason(''); }}
+                    className="btn-ghost flex-1"
+                    disabled={pendingLoading}
+                  >
+                    Batal
+                  </button>
+                  <button
+                    onClick={async () => {
+                      setPendingLoading(true);
+                      try {
+                        await handleAction('pending', pendingReason.trim() || 'Menunggu sparepart/keputusan');
+                        setPendingModal(false);
+                        setPendingReason('');
+                      } finally {
+                        setPendingLoading(false);
+                      }
+                    }}
+                    disabled={pendingLoading}
+                    className="flex flex-1 items-center justify-center gap-2 rounded-xl border-2 border-amber-200 bg-amber-50 px-4 py-2.5 font-semibold text-amber-700 transition-all hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {pendingLoading ? (
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-amber-300 border-t-amber-600" />
+                    ) : (
+                      <PauseCircle size={16} />
+                    )}
+                    Konfirmasi
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Follow Up Modal */}
         <AnimatePresence>

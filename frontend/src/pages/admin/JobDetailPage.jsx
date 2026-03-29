@@ -13,6 +13,7 @@ import {
   Clock,
   Image as ImageIcon,
   X as XIcon,
+  Wrench,
 } from 'lucide-react';
 import { adminApi, getAuthHeader } from '../../api/client';
 import StatusBadge from '../../components/StatusBadge';
@@ -242,6 +243,13 @@ export default function JobDetailPage() {
       <div className="mb-6 rounded-2xl bg-white p-6 shadow-card ring-1 ring-neutral-100">
         <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
+            <div className="flex items-center gap-2 mb-1">
+              {job.jobType === 'BACK_OFFICE' && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-2.5 py-0.5 text-xs font-medium text-orange-700">
+                  <Wrench className="h-3 w-3" /> Workshop
+                </span>
+              )}
+            </div>
             <h1 className="text-xl font-bold text-neutral-900">{job.title}</h1>
             <div className="mt-2">
               <StatusBadge status={job.status} />
@@ -294,14 +302,23 @@ export default function JobDetailPage() {
         )}
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <InfoItem icon={User} label="Customer" value={job.customerName || '-'} />
-          <InfoItem icon={MapPin} label="Alamat" value={job.address || '-'} />
+          {job.jobType === 'BACK_OFFICE' ? (
+            <>
+              <InfoItem icon={Wrench} label="Nama Mesin" value={job.customerName || '-'} />
+              <InfoItem icon={Wrench} label="Tipe Mesin" value={job.address || '-'} />
+              {job.machineSerialNo && <InfoItem icon={Wrench} label="No. Seri" value={job.machineSerialNo} />}
+              {job.estimateText && <InfoItem icon={Wrench} label="Estimasi" value={job.estimateText} />}
+            </>
+          ) : (
+            <>
+              <InfoItem icon={User} label="Customer" value={job.customerName || '-'} />
+              <InfoItem icon={MapPin} label="Alamat" value={job.address || '-'} />
+              {job.customerPhone && <InfoItem icon={User} label="Telepon" value={job.customerPhone} />}
+            </>
+          )}
           <InfoItem icon={User} label="Teknisi" value={job.assignedToName || 'Belum ditugaskan'} />
           <InfoItem icon={Calendar} label="Tanggal Dijadwalkan" value={formatDate(job.scheduledDate)} />
           <InfoItem icon={Clock} label="Dibuat" value={formatDateTime(job.createdAt)} />
-          {job.customerPhone && (
-            <InfoItem icon={User} label="Telepon" value={job.customerPhone} />
-          )}
         </div>
 
         {/* Timestamp milestones */}

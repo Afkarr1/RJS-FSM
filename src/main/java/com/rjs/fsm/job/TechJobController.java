@@ -59,6 +59,22 @@ public class TechJobController {
         return jobService.markFollowUp(id, currentUser.getCurrentUserId(), req.getReason());
     }
 
+    @PostMapping("/{id}/pending")
+    public JobResponse markPending(@PathVariable UUID id, @RequestBody(required = false) FollowUpRequest req) {
+        String reason = (req != null && req.getReason() != null) ? req.getReason() : "Menunggu sparepart/keputusan";
+        return jobService.markPending(id, currentUser.getCurrentUserId(), reason);
+    }
+
+    @PostMapping("/{id}/resume")
+    public JobResponse resumeJob(@PathVariable UUID id) {
+        return jobService.resumeJob(id, currentUser.getCurrentUserId());
+    }
+
+    @PostMapping("/{id}/progress")
+    public JobResponse addProgressNote(@PathVariable UUID id, @Valid @RequestBody FollowUpRequest req) {
+        return jobService.addProgressNote(id, currentUser.getCurrentUserId(), req.getReason());
+    }
+
     @GetMapping("/{id}/history")
     public List<JobHistoryResponse> getJobHistory(@PathVariable UUID id) {
         UUID techId = currentUser.getCurrentUserId();
