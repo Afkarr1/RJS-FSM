@@ -21,6 +21,11 @@ public class FonnteWhatsAppService implements WhatsAppService {
     public FonnteWhatsAppService(AppProperties props) {
         this.apiKey = props.getFonnte().getApiKey();
         this.restTemplate = new RestTemplate();
+        if (apiKey == null || apiKey.isBlank()) {
+            log.warn("=== FONNTE API KEY NOT SET — WA berjalan dalam mode dry-run (tidak kirim) ===");
+        } else {
+            log.info("=== Fonnte WA siap, key: {}... ===", apiKey.substring(0, Math.min(8, apiKey.length())));
+        }
     }
 
     @Override
@@ -60,6 +65,8 @@ public class FonnteWhatsAppService implements WhatsAppService {
         if (phone == null) return "";
         String cleaned = phone.replaceAll("[^0-9+]", "");
         if (cleaned.startsWith("+")) cleaned = cleaned.substring(1);
+        // Convert local Indonesian format: 08xxx → 628xxx
+        if (cleaned.startsWith("0")) cleaned = "62" + cleaned.substring(1);
         return cleaned;
     }
 }
