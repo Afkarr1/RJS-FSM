@@ -12,6 +12,8 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
     boolean existsByUsernameAndTenantId(String username, UUID tenantId);
 
+    boolean existsByUsernameAndTenantIdAndTechSection(String username, UUID tenantId, TechSection techSection);
+
     Optional<User> findByIdAndTenantId(UUID id, UUID tenantId);
 
     List<User> findByTenantIdOrderByCreatedAtDesc(UUID tenantId);

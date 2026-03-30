@@ -54,8 +54,11 @@ public class UserService {
         UUID tenantId = TenantContext.require();
 
         String username = req.getUsername().trim();
-        if (repo.existsByUsernameAndTenantId(username, tenantId)) {
-            throw new BadRequestException("Username sudah digunakan: " + username);
+        TechSection techSection = req.getTechSection() != null ? req.getTechSection() : TechSection.FIELD;
+
+        // Allow same username with different techSection (teknisi can have FIELD + INTERNAL)
+        if (repo.existsByUsernameAndTenantIdAndTechSection(username, tenantId, techSection)) {
+            throw new BadRequestException("Username sudah digunakan untuk seksi ini: " + username);
         }
 
         User u = new User();
@@ -65,7 +68,7 @@ public class UserService {
         u.setPasswordHash(encoder.encode(req.getPassword()));
         u.setRole(req.getRole());
         u.setPhoneE164(req.getPhoneE164());
-        u.setTechSection(req.getTechSection() != null ? req.getTechSection() : TechSection.FIELD);
+        u.setTechSection(techSection);
         u.setActive(true);
 
         return UserResponse.from(repo.save(u));
