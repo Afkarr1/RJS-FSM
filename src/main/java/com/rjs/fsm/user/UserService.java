@@ -3,6 +3,7 @@ package com.rjs.fsm.user;
 import com.rjs.fsm.exception.BadRequestException;
 import com.rjs.fsm.exception.NotFoundException;
 import com.rjs.fsm.tenant.TenantContext;
+import com.rjs.fsm.user.TechSection;
 import com.rjs.fsm.user.dto.*;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -64,6 +65,7 @@ public class UserService {
         u.setPasswordHash(encoder.encode(req.getPassword()));
         u.setRole(req.getRole());
         u.setPhoneE164(req.getPhoneE164());
+        u.setTechSection(req.getTechSection() != null ? req.getTechSection() : TechSection.FIELD);
         u.setActive(true);
 
         return UserResponse.from(repo.save(u));
@@ -81,6 +83,9 @@ public class UserService {
         if (req.getPhoneE164() != null) {
             u.setPhoneE164(req.getPhoneE164());
         }
+        if (req.getTechSection() != null) {
+            u.setTechSection(req.getTechSection());
+        }
         return UserResponse.from(repo.save(u));
     }
 
@@ -96,6 +101,14 @@ public class UserService {
         User u = get(id);
         u.setPasswordHash(encoder.encode(newPassword));
         return UserResponse.from(repo.save(u));
+    }
+
+    @Transactional(readOnly = true)
+    public List<UserResponse> listTechniciansBySection(TechSection section) {
+        UUID tenantId = TenantContext.require();
+        return repo.findByTenantIdAndRoleAndTechSectionOrderByFullNameAsc(
+                        tenantId, UserRole.TECHNICIAN, section)
+                .stream().map(UserResponse::from).toList();
     }
 
     @Transactional

@@ -1,5 +1,6 @@
 package com.rjs.fsm.user.dto;
 
+import com.rjs.fsm.user.TechSection;
 import com.rjs.fsm.user.User;
 import com.rjs.fsm.user.UserRole;
 import lombok.AllArgsConstructor;
@@ -20,12 +21,14 @@ public class UserResponse {
     private OffsetDateTime createdAt;
     private OffsetDateTime updatedAt;
     private OffsetDateTime lastLoginAt;
+    private TechSection techSection;
 
     public static UserResponse from(User u) {
         return new UserResponse(
                 u.getId(), u.getUsername(), u.getFullName(), u.getRole(),
                 u.getPhoneE164(), u.isActive(),
-                u.getCreatedAt(), u.getUpdatedAt(), u.getLastLoginAt()
+                u.getCreatedAt(), u.getUpdatedAt(), u.getLastLoginAt(),
+                u.getTechSection()
         );
     }
 }

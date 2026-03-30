@@ -1,5 +1,6 @@
 package com.rjs.fsm.user.dto;
 
+import com.rjs.fsm.user.TechSection;
 import com.rjs.fsm.user.UserRole;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -22,4 +23,6 @@ public class CreateUserRequest {
     private UserRole role;
 
     private String phoneE164;
+
+    private TechSection techSection = TechSection.FIELD;
 }

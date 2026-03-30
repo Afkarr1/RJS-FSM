@@ -35,6 +35,10 @@ public class User {
     @Column(name = "phone_e164", length = 20)
     private String phoneE164;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "tech_section", length = 20)
+    private TechSection techSection;
+
     @Column(name = "is_active", nullable = false)
     private boolean active = true;
 

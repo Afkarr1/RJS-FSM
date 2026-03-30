@@ -1,5 +1,6 @@
 package com.rjs.fsm.job.dto;
 
+import com.rjs.fsm.job.JobType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
@@ -26,4 +27,12 @@ public class CreateJobRequest {
     private LocalDate scheduledDate;
     private UUID assignToId;
     private Boolean requiresPhoto;
+
+    private JobType jobType = JobType.FIELD_SERVICE;
+
+    @Size(max = 100, message = "No. seri maksimal 100 karakter")
+    private String machineSerialNo;
+
+    @Size(max = 500, message = "Estimasi maksimal 500 karakter")
+    private String estimateText;
 }

@@ -49,7 +49,14 @@ public class FonnteWhatsAppService implements WhatsAppService {
             ResponseEntity<String> response = restTemplate.postForEntity(FONNTE_API_URL, request, String.class);
 
             if (response.getStatusCode().is2xxSuccessful()) {
-                log.info("WA message sent to {}", phoneNumber);
+                String responseBody = response.getBody();
+                // Fonnte returns HTTP 200 even when device is not connected,
+                // with body {"status":false,"reason":"..."}
+                if (responseBody != null && responseBody.contains("\"status\":false")) {
+                    log.warn("Fonnte rejected message to {}: {}", normalizePhone(phoneNumber), responseBody);
+                    return false;
+                }
+                log.info("WA message sent to {}", normalizePhone(phoneNumber));
                 return true;
             } else {
                 log.error("Fonnte API error: status={}, body={}", response.getStatusCode(), response.getBody());

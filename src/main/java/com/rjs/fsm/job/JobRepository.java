@@ -20,4 +20,10 @@ public interface JobRepository extends JpaRepository<Job, UUID> {
             UUID assignedToId, UUID tenantId, List<JobStatus> statuses);
 
     List<Job> findByTenantIdAndStatusAndPhotoUploadedFalse(UUID tenantId, JobStatus status);
+
+    List<Job> findByAssignedToIdAndTenantIdAndJobTypeOrderByScheduledDateAsc(
+            UUID assignedToId, UUID tenantId, JobType jobType);
+
+    List<Job> findByAssignedToIdAndTenantIdAndJobTypeAndStatusInOrderByScheduledDateAsc(
+            UUID assignedToId, UUID tenantId, JobType jobType, List<JobStatus> statuses);
 }

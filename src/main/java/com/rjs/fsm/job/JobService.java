@@ -57,8 +57,19 @@ public class JobService {
         job.setAddress(req.getAddress());
         job.setScheduledDate(req.getScheduledDate());
         job.setCreatedById(adminId);
-        job.setRequiresPhoto(req.getRequiresPhoto() != null ? req.getRequiresPhoto() : true);
         job.setStatus(JobStatus.OPEN);
+
+        JobType jobType = req.getJobType() != null ? req.getJobType() : JobType.FIELD_SERVICE;
+        job.setJobType(jobType);
+        job.setMachineSerialNo(req.getMachineSerialNo());
+        job.setEstimateText(req.getEstimateText());
+
+        // BACK_OFFICE: no photo required by default; FIELD_SERVICE: use request value
+        if (jobType == JobType.BACK_OFFICE) {
+            job.setRequiresPhoto(req.getRequiresPhoto() != null ? req.getRequiresPhoto() : false);
+        } else {
+            job.setRequiresPhoto(req.getRequiresPhoto() != null ? req.getRequiresPhoto() : true);
+        }
 
         validateScheduledDate(req.getScheduledDate());
 
@@ -73,7 +84,7 @@ public class JobService {
         recordHistory(job, null, job.getStatus(), adminId, null);
         auditService.logAction(adminId, "CREATE_JOB", "JOBS", job.getId(), "Job created: " + job.getTitle());
 
-        log.info("Job created: id={}, status={}", job.getId(), job.getStatus());
+        log.info("Job created: id={}, type={}, status={}", job.getId(), job.getJobType(), job.getStatus());
         return toResponse(job);
     }
 
@@ -206,23 +217,40 @@ public class JobService {
     @Transactional(readOnly = true)
     public List<JobResponse> listMyJobs(UUID technicianId) {
         UUID tenantId = TenantContext.require();
-        return jobRepo.findByAssignedToIdAndTenantIdOrderByScheduledDateAsc(technicianId, tenantId).stream()
-                .map(this::toResponse).toList();
+        com.rjs.fsm.user.TechSection section = userRepo.findByIdAndTenantId(technicianId, tenantId)
+                .map(u -> u.getTechSection() != null ? u.getTechSection() : com.rjs.fsm.user.TechSection.FIELD)
+                .orElse(com.rjs.fsm.user.TechSection.FIELD);
+        JobType targetType = (section == com.rjs.fsm.user.TechSection.INTERNAL)
+                ? JobType.BACK_OFFICE : JobType.FIELD_SERVICE;
+        return jobRepo.findByAssignedToIdAndTenantIdAndJobTypeOrderByScheduledDateAsc(
+                        technicianId, tenantId, targetType)
+                .stream().map(this::toResponse).toList();
     }
 
     @Transactional(readOnly = true)
     public List<JobResponse> listMyActiveJobs(UUID technicianId) {
         UUID tenantId = TenantContext.require();
-        List<JobStatus> activeStatuses = List.of(JobStatus.ASSIGNED, JobStatus.IN_TRANSIT, JobStatus.IN_PROGRESS);
-        return jobRepo.findByAssignedToIdAndTenantIdAndStatusInOrderByScheduledDateAsc(
-                technicianId, tenantId, activeStatuses).stream()
-                .map(this::toResponse).toList();
+        com.rjs.fsm.user.TechSection section = userRepo.findByIdAndTenantId(technicianId, tenantId)
+                .map(u -> u.getTechSection() != null ? u.getTechSection() : com.rjs.fsm.user.TechSection.FIELD)
+                .orElse(com.rjs.fsm.user.TechSection.FIELD);
+        JobType targetType = (section == com.rjs.fsm.user.TechSection.INTERNAL)
+                ? JobType.BACK_OFFICE : JobType.FIELD_SERVICE;
+        List<JobStatus> activeStatuses = (section == com.rjs.fsm.user.TechSection.INTERNAL)
+                ? List.of(JobStatus.ASSIGNED, JobStatus.IN_PROGRESS, JobStatus.PENDING)
+                : List.of(JobStatus.ASSIGNED, JobStatus.IN_TRANSIT, JobStatus.IN_PROGRESS);
+        return jobRepo.findByAssignedToIdAndTenantIdAndJobTypeAndStatusInOrderByScheduledDateAsc(
+                        technicianId, tenantId, targetType, activeStatuses)
+                .stream().map(this::toResponse).toList();
     }
 
     @Transactional
     public JobResponse startTransit(UUID jobId, UUID technicianId) {
         Job job = getJobEntity(jobId);
         validateTechOwnership(job, technicianId);
+
+        if (job.getJobType() == JobType.BACK_OFFICE) {
+            throw new BadRequestException("Job workshop tidak memerlukan status dalam perjalanan");
+        }
 
         if (job.getStatus() != JobStatus.ASSIGNED) {
             throw new BadRequestException("Job hanya bisa dalam perjalanan dari status ASSIGNED");
@@ -244,8 +272,16 @@ public class JobService {
         Job job = getJobEntity(jobId);
         validateTechOwnership(job, technicianId);
 
-        if (job.getStatus() != JobStatus.IN_TRANSIT) {
-            throw new BadRequestException("Job hanya bisa di-start dari status IN_TRANSIT (Dalam Perjalanan)");
+        // BACK_OFFICE: start directly from ASSIGNED (skip transit)
+        // FIELD_SERVICE: must be IN_TRANSIT first
+        JobStatus required = (job.getJobType() == JobType.BACK_OFFICE)
+                ? JobStatus.ASSIGNED : JobStatus.IN_TRANSIT;
+
+        if (job.getStatus() != required) {
+            String msg = (job.getJobType() == JobType.BACK_OFFICE)
+                    ? "Job workshop hanya bisa dimulai dari status ASSIGNED"
+                    : "Job hanya bisa di-start dari status IN_TRANSIT (Dalam Perjalanan)";
+            throw new BadRequestException(msg);
         }
 
         JobStatus oldStatus = job.getStatus();
@@ -282,12 +318,13 @@ public class JobService {
         recordHistory(job, oldStatus, JobStatus.DONE, technicianId, null);
         auditService.logAction(technicianId, "FINISH_JOB", "JOBS", job.getId(), "Job finished");
 
-        // Auto-send review link to customer via WhatsApp
-        if (job.getCustomerPhone() != null && !job.getCustomerPhone().isBlank()) {
+        // WA notification only for FIELD_SERVICE with customer phone
+        if (job.getJobType() == JobType.FIELD_SERVICE
+                && job.getCustomerPhone() != null && !job.getCustomerPhone().isBlank()) {
             notificationService.sendReviewLinkToCustomer(job);
         }
 
-        log.info("Job finished: id={}, tech={}", job.getId(), technicianId);
+        log.info("Job finished: id={}, type={}, tech={}", job.getId(), job.getJobType(), technicianId);
         return toResponse(job);
     }
 
@@ -306,6 +343,65 @@ public class JobService {
         job = jobRepo.save(job);
         recordHistory(job, oldStatus, JobStatus.NEED_FOLLOWUP, technicianId, reason);
         auditService.logAction(technicianId, "FOLLOWUP_JOB", "JOBS", job.getId(), "Follow up: " + reason);
+
+        return toResponse(job);
+    }
+
+    /** BACK_OFFICE: mark as PENDING (waiting for spare parts / decision). */
+    @Transactional
+    public JobResponse markPending(UUID jobId, UUID technicianId, String reason) {
+        Job job = getJobEntity(jobId);
+        validateTechOwnership(job, technicianId);
+
+        if (job.getStatus() != JobStatus.IN_PROGRESS) {
+            throw new BadRequestException("Job hanya bisa di-pending dari status IN_PROGRESS");
+        }
+
+        JobStatus oldStatus = job.getStatus();
+        job.setStatus(JobStatus.PENDING);
+        job.setPendingAt(OffsetDateTime.now(ZoneId.of("Asia/Jakarta")));
+
+        job = jobRepo.save(job);
+        recordHistory(job, oldStatus, JobStatus.PENDING, technicianId, reason);
+        auditService.logAction(technicianId, "PENDING_JOB", "JOBS", job.getId(), "Pending: " + reason);
+
+        return toResponse(job);
+    }
+
+    /** BACK_OFFICE: resume from PENDING back to IN_PROGRESS. */
+    @Transactional
+    public JobResponse resumeJob(UUID jobId, UUID technicianId) {
+        Job job = getJobEntity(jobId);
+        validateTechOwnership(job, technicianId);
+
+        if (job.getStatus() != JobStatus.PENDING) {
+            throw new BadRequestException("Job hanya bisa dilanjutkan dari status PENDING");
+        }
+
+        JobStatus oldStatus = job.getStatus();
+        job.setStatus(JobStatus.IN_PROGRESS);
+        job.setPendingAt(null);
+
+        job = jobRepo.save(job);
+        recordHistory(job, oldStatus, JobStatus.IN_PROGRESS, technicianId, "Pengerjaan dilanjutkan");
+        auditService.logAction(technicianId, "RESUME_JOB", "JOBS", job.getId(), "Job resumed from pending");
+
+        return toResponse(job);
+    }
+
+    /** BACK_OFFICE: add a progress note without changing status. */
+    @Transactional
+    public JobResponse addProgressNote(UUID jobId, UUID technicianId, String note) {
+        Job job = getJobEntity(jobId);
+        validateTechOwnership(job, technicianId);
+
+        if (job.getStatus() != JobStatus.IN_PROGRESS) {
+            throw new BadRequestException("Progress hanya bisa ditambahkan saat status IN_PROGRESS");
+        }
+
+        // Only record to history — status unchanged
+        recordHistory(job, job.getStatus(), job.getStatus(), technicianId, note);
+        auditService.logAction(technicianId, "PROGRESS_NOTE", "JOBS", job.getId(), "Progress: " + note);
 
         return toResponse(job);
     }

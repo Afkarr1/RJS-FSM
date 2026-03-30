@@ -34,9 +34,10 @@ export default function UserListPage() {
     fullName: '',
     password: '',
     role: 'TECHNICIAN',
+    techSection: 'FIELD',
     phoneE164: '',
   });
-  const [editForm, setEditForm] = useState({ fullName: '', role: '', phoneE164: '' });
+  const [editForm, setEditForm] = useState({ fullName: '', role: '', techSection: '', phoneE164: '' });
   const [newPassword, setNewPassword] = useState('');
 
   const fetchUsers = async () => {
@@ -69,7 +70,7 @@ export default function UserListPage() {
       await adminApi.createUser(createForm);
       toast.success('Pengguna berhasil dibuat');
       setCreateModal(false);
-      setCreateForm({ username: '', fullName: '', password: '', role: 'TECHNICIAN', phoneE164: '' });
+      setCreateForm({ username: '', fullName: '', password: '', role: 'TECHNICIAN', techSection: 'FIELD', phoneE164: '' });
       fetchUsers();
     } catch (err) {
       toast.error(err?.message || 'Gagal membuat pengguna');
@@ -83,6 +84,7 @@ export default function UserListPage() {
     setEditForm({
       fullName: user.fullName || '',
       role: user.role || 'TECHNICIAN',
+      techSection: user.techSection || 'FIELD',
       phoneE164: user.phoneE164 || '',
     });
     setEditModal(true);
@@ -177,6 +179,7 @@ export default function UserListPage() {
                   <th className="px-6 py-3 font-semibold text-neutral-500">Nama</th>
                   <th className="px-6 py-3 font-semibold text-neutral-500">Username</th>
                   <th className="px-6 py-3 font-semibold text-neutral-500">Role</th>
+                  <th className="px-6 py-3 font-semibold text-neutral-500">Seksi</th>
                   <th className="px-6 py-3 font-semibold text-neutral-500">Telepon</th>
                   <th className="px-6 py-3 font-semibold text-neutral-500">Status</th>
                   <th className="px-6 py-3 font-semibold text-neutral-500">Aksi</th>
@@ -204,6 +207,19 @@ export default function UserListPage() {
                       >
                         {u.role}
                       </span>
+                    </td>
+                    <td className="px-6 py-3.5">
+                      {u.role === 'TECHNICIAN' ? (
+                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ${
+                          u.techSection === 'INTERNAL'
+                            ? 'bg-orange-50 text-orange-700 ring-orange-200'
+                            : 'bg-blue-50 text-blue-700 ring-blue-200'
+                        }`}>
+                          {u.techSection === 'INTERNAL' ? 'Internal' : 'Lapangan'}
+                        </span>
+                      ) : (
+                        <span className="text-neutral-300">—</span>
+                      )}
                     </td>
                     <td className="px-6 py-3.5 text-neutral-500">{u.phoneE164 || '-'}</td>
                     <td className="px-6 py-3.5">
@@ -303,6 +319,19 @@ export default function UserListPage() {
               <option value="ADMIN">Admin</option>
             </select>
           </div>
+          {createForm.role === 'TECHNICIAN' && (
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-neutral-700">Seksi</label>
+              <select
+                value={createForm.techSection}
+                onChange={(e) => setCreateForm((f) => ({ ...f, techSection: e.target.value }))}
+                className="input-field"
+              >
+                <option value="FIELD">Lapangan (Field Service)</option>
+                <option value="INTERNAL">Internal (Workshop)</option>
+              </select>
+            </div>
+          )}
           <div>
             <label className="mb-1.5 block text-sm font-medium text-neutral-700">Telepon</label>
             <input
@@ -347,6 +376,19 @@ export default function UserListPage() {
               <option value="ADMIN">Admin</option>
             </select>
           </div>
+          {editForm.role === 'TECHNICIAN' && (
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-neutral-700">Seksi</label>
+              <select
+                value={editForm.techSection || 'FIELD'}
+                onChange={(e) => setEditForm((f) => ({ ...f, techSection: e.target.value }))}
+                className="input-field"
+              >
+                <option value="FIELD">Lapangan (Field Service)</option>
+                <option value="INTERNAL">Internal (Workshop)</option>
+              </select>
+            </div>
+          )}
           <div>
             <label className="mb-1.5 block text-sm font-medium text-neutral-700">Telepon</label>
             <input

@@ -8,6 +8,7 @@ public enum JobStatus {
     ASSIGNED,
     IN_TRANSIT,
     IN_PROGRESS,
+    PENDING,
     DONE,
     NEED_FOLLOWUP,
     CLOSED,
@@ -16,12 +17,15 @@ public enum JobStatus {
     /**
      * FSM transition rules.
      * Key = current status, Value = set of allowed next statuses.
+     * Note: ASSIGNED→IN_PROGRESS is for BACK_OFFICE (skip transit),
+     * handled conditionally in JobService.
      */
     private static final Map<JobStatus, Set<JobStatus>> TRANSITIONS = Map.of(
             OPEN,           Set.of(ASSIGNED),
-            ASSIGNED,       Set.of(IN_TRANSIT),
+            ASSIGNED,       Set.of(IN_TRANSIT, IN_PROGRESS),
             IN_TRANSIT,     Set.of(IN_PROGRESS),
-            IN_PROGRESS,    Set.of(DONE, NEED_FOLLOWUP),
+            IN_PROGRESS,    Set.of(DONE, NEED_FOLLOWUP, PENDING),
+            PENDING,        Set.of(IN_PROGRESS),
             DONE,           Set.of(CLOSED),
             NEED_FOLLOWUP,  Set.of(ASSIGNED)
     );
@@ -39,9 +43,12 @@ public enum JobStatus {
      */
     private static final Set<String> TECH_ONLY = Set.of(
             "ASSIGNED->IN_TRANSIT",
+            "ASSIGNED->IN_PROGRESS",
             "IN_TRANSIT->IN_PROGRESS",
             "IN_PROGRESS->DONE",
-            "IN_PROGRESS->NEED_FOLLOWUP"
+            "IN_PROGRESS->NEED_FOLLOWUP",
+            "IN_PROGRESS->PENDING",
+            "PENDING->IN_PROGRESS"
     );
 
     public boolean canTransitionTo(JobStatus target) {
