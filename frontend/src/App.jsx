@@ -12,6 +12,7 @@ import AdminUserListPage from './pages/admin/UserListPage';
 import AdminAuditPage from './pages/admin/AuditPage';
 import AdminCustomerListPage from './pages/admin/CustomerListPage';
 import AdminCustomerHistoryPage from './pages/admin/CustomerHistoryPage';
+import AdminWorkshopPage from './pages/admin/AdminWorkshopPage';
 
 // Tech pages
 import TechDashboardPage from './pages/tech/TechDashboardPage';
@@ -65,6 +66,7 @@ export default function App() {
         <Route path="users" element={<AdminUserListPage />} />
         <Route path="audit" element={<AdminAuditPage />} />
         <Route path="history" element={<AdminCustomerHistoryPage />} />
+        <Route path="workshop" element={<AdminWorkshopPage />} />
       </Route>
 
       {/* Tech routes */}

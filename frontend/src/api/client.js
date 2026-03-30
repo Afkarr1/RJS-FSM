@@ -71,7 +71,8 @@ export const authApi = {
 // Admin APIs
 export const adminApi = {
   getUsers: () => api.get('/admin/users'),
-  getTechnicians: () => api.get('/admin/users/technicians'),
+  getTechnicians: (section) =>
+    api.get(`/admin/users/technicians${section ? `?section=${section}` : ''}`),
   getUser: (id) => api.get(`/admin/users/${id}`),
   createUser: (data) => api.post('/admin/users', data),
   updateUser: (id, data) => api.put(`/admin/users/${id}`, data),

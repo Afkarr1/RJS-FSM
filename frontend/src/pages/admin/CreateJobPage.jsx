@@ -8,7 +8,8 @@ import { useToast } from '../../components/Toast';
 export default function CreateJobPage() {
   const navigate = useNavigate();
   const toast = useToast();
-  const [techs, setTechs] = useState([]);
+  const [fieldTechs, setFieldTechs] = useState([]);
+  const [internalTechs, setInternalTechs] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [jobType, setJobType] = useState('FIELD_SERVICE');
@@ -29,7 +30,13 @@ export default function CreateJobPage() {
   const todayWIB = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Jakarta' });
 
   useEffect(() => {
-    adminApi.getTechnicians().then(setTechs).catch(() => {});
+    Promise.all([
+      adminApi.getTechnicians('FIELD'),
+      adminApi.getTechnicians('INTERNAL'),
+    ]).then(([f, i]) => {
+      setFieldTechs(Array.isArray(f) ? f : []);
+      setInternalTechs(Array.isArray(i) ? i : []);
+    }).catch(() => {});
     adminApi.getCustomers().then(setCustomers).catch(() => {});
   }, []);
 
@@ -114,6 +121,7 @@ export default function CreateJobPage() {
   };
 
   const isBackOffice = jobType === 'BACK_OFFICE';
+  const availableTechs = jobType === 'BACK_OFFICE' ? internalTechs : fieldTechs;
 
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
@@ -258,7 +266,7 @@ export default function CreateJobPage() {
               <label className="block text-sm font-medium text-neutral-700 mb-1">Tugaskan ke Teknisi</label>
               <select value={form.assignToId} onChange={e => set('assignToId', e.target.value)} className="input-field">
                 <option value="">Belum ditugaskan</option>
-                {techs.map(t => <option key={t.id} value={t.id}>{t.fullName}</option>)}
+                {availableTechs.map(t => <option key={t.id} value={t.id}>{t.fullName}</option>)}
               </select>
             </div>
           </div>
