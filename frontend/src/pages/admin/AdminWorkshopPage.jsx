@@ -6,7 +6,7 @@ import StatusBadge from '../../components/StatusBadge';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import { useToast } from '../../components/Toast';
 
-const WORKSHOP_PIN = '1234';
+const WORKSHOP_PIN = '$$$$';
 
 const STATUS_LABEL = {
   OPEN: 'Dibuat', ASSIGNED: 'Ditugaskan', IN_PROGRESS: 'Dikerjakan',
