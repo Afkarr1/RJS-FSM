@@ -217,18 +217,30 @@ public class JobService {
     @Transactional(readOnly = true)
     public List<JobResponse> listMyJobs(UUID technicianId) {
         UUID tenantId = TenantContext.require();
-        return jobRepo.findByAssignedToIdAndTenantIdOrderByScheduledDateAsc(technicianId, tenantId).stream()
-                .map(this::toResponse).toList();
+        com.rjs.fsm.user.TechSection section = userRepo.findByIdAndTenantId(technicianId, tenantId)
+                .map(u -> u.getTechSection() != null ? u.getTechSection() : com.rjs.fsm.user.TechSection.FIELD)
+                .orElse(com.rjs.fsm.user.TechSection.FIELD);
+        JobType targetType = (section == com.rjs.fsm.user.TechSection.INTERNAL)
+                ? JobType.BACK_OFFICE : JobType.FIELD_SERVICE;
+        return jobRepo.findByAssignedToIdAndTenantIdAndJobTypeOrderByScheduledDateAsc(
+                        technicianId, tenantId, targetType)
+                .stream().map(this::toResponse).toList();
     }
 
     @Transactional(readOnly = true)
     public List<JobResponse> listMyActiveJobs(UUID technicianId) {
         UUID tenantId = TenantContext.require();
-        List<JobStatus> activeStatuses = List.of(
-                JobStatus.ASSIGNED, JobStatus.IN_TRANSIT, JobStatus.IN_PROGRESS, JobStatus.PENDING);
-        return jobRepo.findByAssignedToIdAndTenantIdAndStatusInOrderByScheduledDateAsc(
-                technicianId, tenantId, activeStatuses).stream()
-                .map(this::toResponse).toList();
+        com.rjs.fsm.user.TechSection section = userRepo.findByIdAndTenantId(technicianId, tenantId)
+                .map(u -> u.getTechSection() != null ? u.getTechSection() : com.rjs.fsm.user.TechSection.FIELD)
+                .orElse(com.rjs.fsm.user.TechSection.FIELD);
+        JobType targetType = (section == com.rjs.fsm.user.TechSection.INTERNAL)
+                ? JobType.BACK_OFFICE : JobType.FIELD_SERVICE;
+        List<JobStatus> activeStatuses = (section == com.rjs.fsm.user.TechSection.INTERNAL)
+                ? List.of(JobStatus.ASSIGNED, JobStatus.IN_PROGRESS, JobStatus.PENDING)
+                : List.of(JobStatus.ASSIGNED, JobStatus.IN_TRANSIT, JobStatus.IN_PROGRESS);
+        return jobRepo.findByAssignedToIdAndTenantIdAndJobTypeAndStatusInOrderByScheduledDateAsc(
+                        technicianId, tenantId, targetType, activeStatuses)
+                .stream().map(this::toResponse).toList();
     }
 
     @Transactional

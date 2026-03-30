@@ -1,5 +1,6 @@
 package com.rjs.fsm.user;
 
+import com.rjs.fsm.user.TechSection;
 import com.rjs.fsm.user.dto.*;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -25,7 +26,9 @@ public class AdminUserController {
     }
 
     @GetMapping("/technicians")
-    public List<UserResponse> listTechnicians() {
+    public List<UserResponse> listTechnicians(
+            @RequestParam(required = false) TechSection section) {
+        if (section != null) return userService.listTechniciansBySection(section);
         return userService.listTechnicians();
     }
 

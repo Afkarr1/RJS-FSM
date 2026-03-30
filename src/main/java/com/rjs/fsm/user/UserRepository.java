@@ -17,4 +17,7 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     List<User> findByTenantIdOrderByCreatedAtDesc(UUID tenantId);
 
     List<User> findByTenantIdAndRoleOrderByFullNameAsc(UUID tenantId, UserRole role);
+
+    List<User> findByTenantIdAndRoleAndTechSectionOrderByFullNameAsc(
+        UUID tenantId, UserRole role, TechSection techSection);
 }
